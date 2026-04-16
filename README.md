@@ -46,7 +46,7 @@ JSON reports contain:
 
 ## Coverage
 
-`dbt-semguard` `v0.1.0` covers the highest-value semantic changes in the latest dbt Semantic Layer spec.
+`dbt-semguard` `v0.1.1` covers the highest-value semantic changes in the latest dbt Semantic Layer spec.
 
 Covered extractors and inputs:
 
@@ -74,7 +74,7 @@ Current automated coverage:
 
 ## Current Limitations
 
-Known `v0.1.0` limitations are intentionally narrow:
+Known `v0.1.1` limitations are intentionally narrow:
 
 - Manifest parsing expects an explicit artifact shape and does not yet attempt broad compatibility across real-world dbt manifest variants.
 - The tool targets the latest Semantic Layer YAML spec only; legacy metric and semantic-model syntax is not included.
@@ -95,7 +95,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./
+      - uses: yeaight7/dbt-semguard@v0.1.1
         with:
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.sha }}
@@ -110,15 +110,15 @@ The action writes:
 
 ## Example project
 
-An example latest-spec dbt project lives in [examples/ecommerce_dbt_project](/C:/Users/Rivero/Documents/GitHub/dbt-semguard/examples/ecommerce_dbt_project).
+An example latest-spec dbt project lives in [examples/ecommerce_dbt_project](examples/ecommerce_dbt_project).
 
 ## Documentation
 
-- [Contract spec](/C:/Users/Rivero/Documents/GitHub/dbt-semguard/docs/contract-spec.md)
-- [Severity rules](/C:/Users/Rivero/Documents/GitHub/dbt-semguard/docs/severity-rules.md)
-- [Roadmap](/C:/Users/Rivero/Documents/GitHub/dbt-semguard/docs/roadmap.md)
-- [Changelog](/C:/Users/Rivero/Documents/GitHub/dbt-semguard/CHANGELOG.md)
+- [Contract spec](docs/contract-spec.md)
+- [Severity rules](docs/severity-rules.md)
+- [Roadmap](docs/roadmap.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 
-This project is open source under the MIT License. See [LICENSE](/C:/Users/Rivero/Documents/GitHub/dbt-semguard/LICENSE).
+This project is open source under the MIT License. See [LICENSE](LICENSE).

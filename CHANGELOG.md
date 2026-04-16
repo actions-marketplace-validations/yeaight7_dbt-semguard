@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.1 - 2026-04-17
+
+Marketplace packaging follow-up release.
+
+### Fixed
+
+- Composite action now installs from `github.action_path` instead of the caller workspace
+- Added Marketplace branding metadata to `action.yml`
+- Replaced local `uses: ./` consumer guidance with the published action ref
+- Replaced broken Windows absolute README links with repo-relative links
+
 ## v0.1.0 - 2026-04-17
 
 Initial public release.
