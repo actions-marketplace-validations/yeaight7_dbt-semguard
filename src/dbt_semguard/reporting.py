@@ -56,7 +56,7 @@ def _render_markdown(report: Report) -> str:
             continue
         lines.append(f"### {severity.capitalize()} changes")
         for change in matching:
-            lines.append(f"- {change.message}")
+            lines.append(f"- {_render_change_with_source(change)}")
         lines.append("")
 
     lines.append(f"Status: {'blocking' if report.blocking else 'passing'}")
@@ -74,7 +74,13 @@ def _render_text(report: Report) -> str:
                 continue
             lines.append(f"{severity.upper()} CHANGES")
             for change in matching:
-                lines.append(f"- {change.message}")
+                lines.append(f"- {_render_change_with_source(change)}")
             lines.append("")
     lines.append(f"Status: {'blocking' if report.blocking else 'passing'}")
     return "\n".join(lines)
+
+
+def _render_change_with_source(change: ChangeRecord) -> str:
+    if change.source is None:
+        return change.message
+    return f"{change.message} (`{change.source.display()}`)"

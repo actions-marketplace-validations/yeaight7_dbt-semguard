@@ -26,6 +26,15 @@ inputs:
   fail-on:
     description: Minimum severity that should fail the action
     default: "breaking"
+  pr-comment:
+    description: When true, publish or update a sticky PR comment with the semguard report
+    default: "false"
+  pr-comment-mode:
+    description: PR comment behavior when a previous dbt-semguard comment exists
+    default: "sticky"
+  github-token:
+    description: GitHub token used for PR comment publishing
+    required: false
   artifact-name:
     description: Name for the uploaded JSON artifact
     default: "semguard-report"
@@ -43,16 +52,44 @@ runs:
         python -m pip install --upgrade pip
         python -m pip install "${{ github.action_path }}"
 
-    - name: Run dbt-semguard
+    - name: Generate dbt-semguard report
       shell: bash
       run: |
         if [[ -n "${{ inputs.base-manifest }}" || -n "${{ inputs.head-manifest }}" ]]; then
           semguard diff --base-manifest "${{ inputs.base-manifest }}" --head-manifest "${{ inputs.head-manifest }}" --format json > semguard-report.json
-          semguard diff --base-manifest "${{ inputs.base-manifest }}" --head-manifest "${{ inputs.head-manifest }}" --format markdown >> "$GITHUB_STEP_SUMMARY"
-          semguard check --base-manifest "${{ inputs.base-manifest }}" --head-manifest "${{ inputs.head-manifest }}" --fail-on "${{ inputs.fail-on }}"
+          semguard diff --base-manifest "${{ inputs.base-manifest }}" --head-manifest "${{ inputs.head-manifest }}" --format markdown > semguard-report.md
+          cat semguard-report.md >> "$GITHUB_STEP_SUMMARY"
         else
           semguard diff --base-ref "${{ inputs.base-ref }}" --head-ref "${{ inputs.head-ref }}" --project-dir "${{ inputs.project-dir }}" --format json > semguard-report.json
-          semguard diff --base-ref "${{ inputs.base-ref }}" --head-ref "${{ inputs.head-ref }}" --project-dir "${{ inputs.project-dir }}" --format markdown >> "$GITHUB_STEP_SUMMARY"
+          semguard diff --base-ref "${{ inputs.base-ref }}" --head-ref "${{ inputs.head-ref }}" --project-dir "${{ inputs.project-dir }}" --format markdown > semguard-report.md
+          cat semguard-report.md >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Publish PR comment
+      if: ${{ inputs.pr-comment == 'true' }}
+      shell: bash
+      run: |
+        if [[ -z "${{ inputs.github-token }}" ]]; then
+          echo "dbt-semguard: skipping PR comment because github-token was not provided."
+          exit 0
+        fi
+        if [[ -z "${{ github.event.pull_request.number }}" ]]; then
+          echo "dbt-semguard: skipping PR comment because this run is not attached to a pull request."
+          exit 0
+        fi
+        semguard comment-pr \
+          --body-file semguard-report.md \
+          --repo "${{ github.repository }}" \
+          --pr-number "${{ github.event.pull_request.number }}" \
+          --github-token "${{ inputs.github-token }}" \
+          --mode "${{ inputs.pr-comment-mode }}"
+
+    - name: Enforce severity threshold
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.base-manifest }}" || -n "${{ inputs.head-manifest }}" ]]; then
+          semguard check --base-manifest "${{ inputs.base-manifest }}" --head-manifest "${{ inputs.head-manifest }}" --fail-on "${{ inputs.fail-on }}"
+        else
           semguard check --base-ref "${{ inputs.base-ref }}" --head-ref "${{ inputs.head-ref }}" --project-dir "${{ inputs.project-dir }}" --fail-on "${{ inputs.fail-on }}"
         fi
 

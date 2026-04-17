@@ -120,3 +120,19 @@ def test_diff_detects_derived_metric_expr_changes():
 
     codes = {(change.code, change.severity) for change in report.changes}
     assert ("metric.derived.expr_changed", "breaking") in codes
+
+
+def test_diff_attaches_source_location_to_change_records():
+    base = extract_contract_from_yaml_dir(FIXTURES / "projects" / "base")
+    head = extract_contract_from_yaml_dir(FIXTURES / "projects" / "breaking_change")
+
+    changes = diff_contracts(base, head)
+    agg_change = next(change for change in changes if change.code == "metric.simple.agg_changed")
+    removed_dimension = next(change for change in changes if change.code == "dimension.removed")
+
+    assert agg_change.source is not None
+    assert agg_change.source.file == "models/orders.yml"
+    assert agg_change.source.line == 21
+    assert removed_dimension.source is not None
+    assert removed_dimension.source.file == "models/orders.yml"
+    assert removed_dimension.source.line == 21

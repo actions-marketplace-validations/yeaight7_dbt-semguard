@@ -130,6 +130,13 @@ jobs:
           echo "HEAD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - uses: yeaight7/dbt-semguard@v0.1.1
+        if: false
+        with:
+          base-ref: ${{ env.BASE_SHA }}
+          head-ref: ${{ env.HEAD_SHA }}
+          fail-on: breaking
+
+      - uses: yeaight7/dbt-semguard@v0.2.0
         with:
           base-ref: ${{ env.BASE_SHA }}
           head-ref: ${{ env.HEAD_SHA }}

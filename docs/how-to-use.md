@@ -43,6 +43,13 @@ At a high level:
 
 It keeps the pieces that affect meaning and ignores cosmetic metadata.
 
+## What v0.2 Adds
+
+`v0.2` adds two workflow improvements that make the output easier to act on in real PRs:
+
+- best-effort file and line diagnostics for YAML-derived semantic changes
+- optional sticky PR comments from the GitHub Action so the latest report stays in one place
+
 ## When To Use Which Command
 
 ### `semguard diff`

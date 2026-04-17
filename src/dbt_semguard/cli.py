@@ -11,6 +11,7 @@ from dbt_semguard.extractors import (
     extract_contract_from_manifest,
     extract_contract_from_yaml_dir,
 )
+from dbt_semguard.github import upsert_pr_comment
 from dbt_semguard.models import SemanticContract
 from dbt_semguard.reporting import build_report, render_report
 
@@ -24,6 +25,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_extract(args)
         if args.command in {"diff", "check"}:
             return _run_compare(args)
+        if args.command == "comment-pr":
+            return _run_comment_pr(args)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -42,6 +45,13 @@ def _build_parser() -> argparse.ArgumentParser:
     extract_parser.add_argument("--project-dir")
     extract_parser.add_argument("--manifest")
     extract_parser.add_argument("--output", required=True)
+
+    comment_parser = subparsers.add_parser("comment-pr")
+    comment_parser.add_argument("--body-file", required=True)
+    comment_parser.add_argument("--repo", required=True)
+    comment_parser.add_argument("--pr-number", type=int, required=True)
+    comment_parser.add_argument("--github-token", required=True)
+    comment_parser.add_argument("--mode", choices=["sticky", "create"], default="sticky")
 
     for name in ("diff", "check"):
         compare_parser = subparsers.add_parser(name)
@@ -86,6 +96,18 @@ def _run_compare(args: argparse.Namespace) -> int:
     print(render_report(report, args.format))
     if args.command == "check" and report.blocking:
         return 1
+    return 0
+
+
+def _run_comment_pr(args: argparse.Namespace) -> int:
+    body = Path(args.body_file).read_text(encoding="utf-8")
+    upsert_pr_comment(
+        repo=args.repo,
+        pull_request_number=args.pr_number,
+        token=args.github_token,
+        body=body,
+        mode=args.mode,
+    )
     return 0
 
 

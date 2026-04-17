@@ -26,6 +26,17 @@ def test_yaml_extractor_builds_latest_spec_contract():
     assert contract.metrics["gross_revenue"].owner_model == "orders"
     assert contract.metrics["aov"].numerator == "gross_revenue"
     assert contract.metrics["aov"].denominator == "order_count"
+    assert model.source is not None
+    assert model.source.file == "models/orders.yml"
+    assert model.source.line == 3
+    assert model.entities["order"].source is not None
+    assert model.entities["order"].source.line == 9
+    assert model.dimensions["ordered_at"].source is not None
+    assert model.dimensions["ordered_at"].source.line == 18
+    assert contract.metrics["gross_revenue"].source is not None
+    assert contract.metrics["gross_revenue"].source.line == 24
+    assert contract.metrics["aov"].source is not None
+    assert contract.metrics["aov"].source.line == 36
 
 
 def test_yaml_extractor_ignores_cosmetic_metadata():

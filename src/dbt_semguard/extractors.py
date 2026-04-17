@@ -13,13 +13,36 @@ from dbt_semguard.models import (
     MetricContract,
     SemanticContract,
     SemanticModelContract,
+    SourceLocation,
 )
+
+_SOURCE_LINE_KEY = "__semguard_source_line__"
+_SOURCE_END_LINE_KEY = "__semguard_source_end_line__"
+_SOURCE_KEY_LINES_KEY = "__semguard_source_key_lines__"
+
+
+class _LineLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_mapping_with_lines(loader: yaml.SafeLoader, node: yaml.nodes.MappingNode, deep: bool = False) -> dict[str, Any]:
+    mapping = yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
+    key_lines = [key_node.start_mark.line + 1 for key_node, _ in node.value]
+    mapping[_SOURCE_LINE_KEY] = min(key_lines) if key_lines else node.start_mark.line + 1
+    mapping[_SOURCE_END_LINE_KEY] = node.end_mark.line + 1
+    mapping[_SOURCE_KEY_LINES_KEY] = {
+        key_node.value: key_node.start_mark.line + 1 for key_node, _ in node.value if isinstance(key_node.value, str)
+    }
+    return mapping
+
+
+_LineLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping_with_lines)
 
 
 def extract_contract_from_yaml_dir(project_dir: str | Path) -> SemanticContract:
     root = Path(project_dir)
     documents = [
-        (str(path.relative_to(root)), path.read_text(encoding="utf-8"))
+        (path.relative_to(root).as_posix(), path.read_text(encoding="utf-8"))
         for path in sorted(root.rglob("*"))
         if path.is_file() and path.suffix in {".yml", ".yaml"}
     ]
@@ -138,8 +161,8 @@ def _build_contract_from_yaml_documents(documents: Iterable[tuple[str, str]]) ->
     semantic_models: dict[str, SemanticModelContract] = {}
     metrics: dict[str, MetricContract] = {}
 
-    for _, content in documents:
-        for payload in yaml.safe_load_all(content):
+    for source_file, content in documents:
+        for payload in yaml.load_all(content, Loader=_LineLoader):
             if not isinstance(payload, dict):
                 continue
 
@@ -155,31 +178,32 @@ def _build_contract_from_yaml_documents(documents: Iterable[tuple[str, str]]) ->
                     name=semantic_name,
                     model_name=model["name"],
                     agg_time_dimension=model.get("agg_time_dimension"),
+                    source=_source_for_key(model, "semantic_model", source_file, semantic_block),
                 )
 
                 for column in model.get("columns", []) or []:
                     if not isinstance(column, dict) or "name" not in column:
                         continue
-                    _attach_column_semantics(contract, column)
+                    _attach_column_semantics(contract, column, source_file)
 
                 semantic_models[semantic_name] = contract
 
                 for metric_payload in model.get("metrics", []) or []:
                     if not isinstance(metric_payload, dict):
                         continue
-                    metric = _build_metric_contract(metric_payload, owner_model=semantic_name)
+                    metric = _build_metric_contract(metric_payload, owner_model=semantic_name, source_file=source_file)
                     metrics[metric.name] = metric
 
             for metric_payload in payload.get("metrics", []) or []:
                 if not isinstance(metric_payload, dict):
                     continue
-                metric = _build_metric_contract(metric_payload, owner_model=None)
+                metric = _build_metric_contract(metric_payload, owner_model=None, source_file=source_file)
                 metrics[metric.name] = metric
 
     return SemanticContract(semantic_models=semantic_models, metrics=metrics)
 
 
-def _attach_column_semantics(contract: SemanticModelContract, column: dict[str, Any]) -> None:
+def _attach_column_semantics(contract: SemanticModelContract, column: dict[str, Any], source_file: str) -> None:
     column_name = column["name"]
     column_expr = column.get("expr") or column_name
 
@@ -190,6 +214,7 @@ def _attach_column_semantics(contract: SemanticModelContract, column: dict[str, 
             name=entity_name,
             type=entity_payload["type"],
             expr=entity_payload.get("expr") or column_expr,
+            source=_source_for_key(column, "entity", source_file, entity_payload),
         )
 
     dimension_payload = column.get("dimension")
@@ -200,10 +225,11 @@ def _attach_column_semantics(contract: SemanticModelContract, column: dict[str, 
             type=dimension_payload["type"],
             expr=dimension_payload.get("expr") or column_expr,
             granularity=column.get("granularity"),
+            source=_source_for_key(column, "dimension", source_file, dimension_payload),
         )
 
 
-def _build_metric_contract(payload: dict[str, Any], owner_model: str | None) -> MetricContract:
+def _build_metric_contract(payload: dict[str, Any], owner_model: str | None, source_file: str | None = None) -> MetricContract:
     return MetricContract(
         name=payload["name"],
         type=payload["type"],
@@ -217,6 +243,7 @@ def _build_metric_contract(payload: dict[str, Any], owner_model: str | None) -> 
         input_metrics=_normalize_input_metrics(payload.get("input_metrics")),
         non_additive_dimension=payload.get("non_additive_dimension"),
         owner_model=owner_model,
+        source=_source_for(payload, source_file),
     )
 
 
@@ -289,6 +316,7 @@ def _normalize_metric_ref(value: Any) -> str | None:
     if value is None:
         return None
     if isinstance(value, dict):
+        value = _without_loader_metadata(value)
         if "name" in value:
             return str(value["name"])
         return json.dumps(value, sort_keys=True)
@@ -303,6 +331,8 @@ def _normalize_input_metrics(value: Any) -> list[str]:
 
     normalized: list[str] = []
     for item in value:
+        if isinstance(item, dict):
+            item = _without_loader_metadata(item)
         if isinstance(item, dict) and "name" in item and set(item.keys()) == {"name"}:
             normalized.append(str(item["name"]))
         else:
@@ -314,7 +344,7 @@ def _normalize_value(value: Any) -> str | None:
     if value is None:
         return None
     if isinstance(value, (dict, list)):
-        return json.dumps(value, sort_keys=True)
+        return json.dumps(_without_loader_metadata(value), sort_keys=True)
     return str(value)
 
 
@@ -324,6 +354,7 @@ def _normalize_filter_value(value: Any) -> str | None:
     if isinstance(value, str):
         return value
     if isinstance(value, dict):
+        value = _without_loader_metadata(value)
         where_sql_template = value.get("where_sql_template")
         if isinstance(where_sql_template, str):
             return where_sql_template
@@ -380,3 +411,42 @@ def _nested_mapping_get(value: Any, *path: str) -> Any:
             return None
         current = current.get(key)
     return current
+
+
+def _source_for(value: Any, source_file: str | None) -> SourceLocation | None:
+    if source_file is None or not isinstance(value, dict) or _SOURCE_LINE_KEY not in value:
+        return None
+    return SourceLocation(
+        file=source_file,
+        line=int(value[_SOURCE_LINE_KEY]),
+        end_line=int(value.get(_SOURCE_END_LINE_KEY) or value[_SOURCE_LINE_KEY]),
+    )
+
+
+def _without_loader_metadata(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _without_loader_metadata(item)
+            for key, item in value.items()
+            if key not in {_SOURCE_LINE_KEY, _SOURCE_END_LINE_KEY, _SOURCE_KEY_LINES_KEY}
+        }
+    if isinstance(value, list):
+        return [_without_loader_metadata(item) for item in value]
+    return value
+
+
+def _source_for_key(
+    container: dict[str, Any],
+    key: str,
+    source_file: str | None,
+    fallback_value: dict[str, Any] | None = None,
+) -> SourceLocation | None:
+    if source_file is None or not isinstance(container, dict):
+        return None
+    key_lines = container.get(_SOURCE_KEY_LINES_KEY)
+    if isinstance(key_lines, dict) and key in key_lines:
+        end_line = None
+        if isinstance(fallback_value, dict):
+            end_line = int(fallback_value.get(_SOURCE_END_LINE_KEY) or key_lines[key])
+        return SourceLocation(file=source_file, line=int(key_lines[key]), end_line=end_line)
+    return _source_for(fallback_value or container.get(key), source_file)

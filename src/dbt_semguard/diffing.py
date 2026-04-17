@@ -41,15 +41,23 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
         path = f"semantic_models.{name}"
 
         if base_model is None and head_model is not None:
-            changes.append(_change("semantic_model.added", path, None, head_model.model_dump(mode="json")))
+            changes.append(_change("semantic_model.added", path, None, head_model.model_dump(mode="json"), head_model.source))
             continue
         if base_model is not None and head_model is None:
-            changes.append(_change("semantic_model.removed", path, base_model.model_dump(mode="json"), None))
+            changes.append(_change("semantic_model.removed", path, base_model.model_dump(mode="json"), None, base_model.source))
             continue
         assert base_model is not None and head_model is not None
 
         if base_model.model_name != head_model.model_name:
-            changes.append(_change("semantic_model.model_changed", path, base_model.model_name, head_model.model_name))
+            changes.append(
+                _change(
+                    "semantic_model.model_changed",
+                    path,
+                    base_model.model_name,
+                    head_model.model_name,
+                    head_model.source or base_model.source,
+                )
+            )
         if base_model.agg_time_dimension != head_model.agg_time_dimension:
             changes.append(
                 _change(
@@ -57,6 +65,7 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
                     path,
                     base_model.agg_time_dimension,
                     head_model.agg_time_dimension,
+                    head_model.source or base_model.source,
                 )
             )
 
@@ -65,23 +74,37 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
             head_entity = head_model.entities.get(entity_name)
             entity_path = f"{path}.entities.{entity_name}"
             if base_entity is None and head_entity is not None:
-                changes.append(_change("entity.added", entity_path, None, head_entity.model_dump(mode="json")))
+                changes.append(_change("entity.added", entity_path, None, head_entity.model_dump(mode="json"), head_entity.source))
             elif base_entity is not None and head_entity is None:
-                changes.append(_change("entity.removed", entity_path, base_entity.model_dump(mode="json"), None))
+                changes.append(_change("entity.removed", entity_path, base_entity.model_dump(mode="json"), None, base_entity.source))
             elif base_entity is not None and head_entity is not None and base_entity.type != head_entity.type:
-                changes.append(_change("entity.type_changed", entity_path, base_entity.type, head_entity.type))
+                changes.append(
+                    _change("entity.type_changed", entity_path, base_entity.type, head_entity.type, head_entity.source or base_entity.source)
+                )
 
         for dimension_name in sorted(set(base_model.dimensions) | set(head_model.dimensions)):
             base_dimension = base_model.dimensions.get(dimension_name)
             head_dimension = head_model.dimensions.get(dimension_name)
             dimension_path = f"{path}.dimensions.{dimension_name}"
             if base_dimension is None and head_dimension is not None:
-                changes.append(_change("dimension.added", dimension_path, None, head_dimension.model_dump(mode="json")))
+                changes.append(
+                    _change("dimension.added", dimension_path, None, head_dimension.model_dump(mode="json"), head_dimension.source)
+                )
             elif base_dimension is not None and head_dimension is None:
-                changes.append(_change("dimension.removed", dimension_path, base_dimension.model_dump(mode="json"), None))
+                changes.append(
+                    _change("dimension.removed", dimension_path, base_dimension.model_dump(mode="json"), None, base_dimension.source)
+                )
             elif base_dimension is not None and head_dimension is not None:
                 if base_dimension.type != head_dimension.type:
-                    changes.append(_change("dimension.type_changed", dimension_path, base_dimension.type, head_dimension.type))
+                    changes.append(
+                        _change(
+                            "dimension.type_changed",
+                            dimension_path,
+                            base_dimension.type,
+                            head_dimension.type,
+                            head_dimension.source or base_dimension.source,
+                        )
+                    )
                 if base_dimension.granularity != head_dimension.granularity:
                     changes.append(
                         _change(
@@ -89,6 +112,7 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
                             dimension_path,
                             base_dimension.granularity,
                             head_dimension.granularity,
+                            head_dimension.source or base_dimension.source,
                         )
                     )
 
@@ -98,10 +122,10 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
         path = f"metrics.{metric_name}"
 
         if base_metric is None and head_metric is not None:
-            changes.append(_change("metric.added", path, None, head_metric.model_dump(mode="json")))
+            changes.append(_change("metric.added", path, None, head_metric.model_dump(mode="json"), head_metric.source))
             continue
         if base_metric is not None and head_metric is None:
-            changes.append(_change("metric.removed", path, base_metric.model_dump(mode="json"), None))
+            changes.append(_change("metric.removed", path, base_metric.model_dump(mode="json"), None, base_metric.source))
             continue
         assert base_metric is not None and head_metric is not None
 
@@ -112,15 +136,19 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
 
 def _diff_metric(path: str, base_metric: MetricContract, head_metric: MetricContract, changes: list[ChangeRecord]) -> None:
     if base_metric.metric_type != head_metric.metric_type:
-        changes.append(_change("metric.type_changed", path, base_metric.metric_type, head_metric.metric_type))
+        changes.append(
+            _change("metric.type_changed", path, base_metric.metric_type, head_metric.metric_type, head_metric.source or base_metric.source)
+        )
         return
 
     if base_metric.owner_model != head_metric.owner_model:
-        changes.append(_change("metric.owner_model_changed", path, base_metric.owner_model, head_metric.owner_model))
+        changes.append(
+            _change("metric.owner_model_changed", path, base_metric.owner_model, head_metric.owner_model, head_metric.source or base_metric.source)
+        )
     if base_metric.label != head_metric.label:
-        changes.append(_change("metric.label_changed", path, base_metric.label, head_metric.label))
+        changes.append(_change("metric.label_changed", path, base_metric.label, head_metric.label, head_metric.source or base_metric.source))
     if base_metric.filter != head_metric.filter:
-        changes.append(_change("metric.filter_changed", path, base_metric.filter, head_metric.filter))
+        changes.append(_change("metric.filter_changed", path, base_metric.filter, head_metric.filter, head_metric.source or base_metric.source))
     if base_metric.agg_time_dimension != head_metric.agg_time_dimension:
         changes.append(
             _change(
@@ -128,14 +156,15 @@ def _diff_metric(path: str, base_metric: MetricContract, head_metric: MetricCont
                 path,
                 base_metric.agg_time_dimension,
                 head_metric.agg_time_dimension,
+                head_metric.source or base_metric.source,
             )
         )
 
     if base_metric.metric_type == "simple":
         if base_metric.agg != head_metric.agg:
-            changes.append(_change("metric.simple.agg_changed", path, base_metric.agg, head_metric.agg))
+            changes.append(_change("metric.simple.agg_changed", path, base_metric.agg, head_metric.agg, head_metric.source or base_metric.source))
         if base_metric.expr != head_metric.expr:
-            changes.append(_change("metric.simple.expr_changed", path, base_metric.expr, head_metric.expr))
+            changes.append(_change("metric.simple.expr_changed", path, base_metric.expr, head_metric.expr, head_metric.source or base_metric.source))
         if base_metric.non_additive_dimension != head_metric.non_additive_dimension:
             changes.append(
                 _change(
@@ -143,25 +172,40 @@ def _diff_metric(path: str, base_metric: MetricContract, head_metric: MetricCont
                     path,
                     base_metric.non_additive_dimension,
                     head_metric.non_additive_dimension,
+                    head_metric.source or base_metric.source,
                 )
             )
     elif base_metric.metric_type == "ratio":
         if base_metric.numerator != head_metric.numerator:
-            changes.append(_change("metric.ratio.numerator_changed", path, base_metric.numerator, head_metric.numerator))
+            changes.append(
+                _change("metric.ratio.numerator_changed", path, base_metric.numerator, head_metric.numerator, head_metric.source or base_metric.source)
+            )
         if base_metric.denominator != head_metric.denominator:
             changes.append(
-                _change("metric.ratio.denominator_changed", path, base_metric.denominator, head_metric.denominator)
+                _change(
+                    "metric.ratio.denominator_changed",
+                    path,
+                    base_metric.denominator,
+                    head_metric.denominator,
+                    head_metric.source or base_metric.source,
+                )
             )
     elif base_metric.metric_type == "derived":
         if base_metric.expr != head_metric.expr:
-            changes.append(_change("metric.derived.expr_changed", path, base_metric.expr, head_metric.expr))
+            changes.append(_change("metric.derived.expr_changed", path, base_metric.expr, head_metric.expr, head_metric.source or base_metric.source))
         if base_metric.input_metrics != head_metric.input_metrics:
             changes.append(
-                _change("metric.derived.inputs_changed", path, base_metric.input_metrics, head_metric.input_metrics)
+                _change(
+                    "metric.derived.inputs_changed",
+                    path,
+                    base_metric.input_metrics,
+                    head_metric.input_metrics,
+                    head_metric.source or base_metric.source,
+                )
             )
 
 
-def _change(code: str, path: str, before: object, after: object) -> ChangeRecord:
+def _change(code: str, path: str, before: object, after: object, source=None) -> ChangeRecord:
     return ChangeRecord(
         code=code,
         severity=SEVERITY_BY_CODE[code],
@@ -169,6 +213,7 @@ def _change(code: str, path: str, before: object, after: object) -> ChangeRecord
         before=before,
         after=after,
         message=_describe_change(code, path, before, after),
+        source=source,
     )
 
 

@@ -43,6 +43,8 @@
 }
 ```
 
+Contracts may also include optional `source` diagnostics on semantic models, entities, dimensions, and metrics when the extractor can determine a stable origin. These diagnostics are explanatory metadata, not part of semantic equality.
+
 ## Included in equality
 
 - Semantic model identity and backing dbt model name
@@ -66,7 +68,7 @@
 - Tags and arbitrary metadata
 - File paths and line numbers
 
-## Supported inputs in v0.1
+## Supported inputs in v0.2
 
 - Latest dbt Semantic Layer YAML spec
 - Explicit dbt `semantic_manifest.json` input
@@ -74,7 +76,8 @@
 
 ## Notes
 
-- `v0.1` does not infer renames.
+- `v0.2` does not infer renames.
+- YAML extraction can emit `source.file` and `source.line` diagnostics; manifest inputs may not.
 - Latest spec assumptions follow dbt docs updated April 16, 2026:
   - `semantic_model` lives under `models`
   - entities and dimensions live under `columns`

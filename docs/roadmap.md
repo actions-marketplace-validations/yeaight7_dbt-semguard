@@ -4,8 +4,7 @@
 
 - Broaden semantic manifest parsing beyond the current dbt `semantic_manifest.json` subset
 - Support richer MetricFlow metric types beyond the current diff coverage
-- Add file and line diagnostics to change records when available
-- Add PR comment orchestration on top of the existing CLI output
+- Add inline GitHub annotations/check-run diagnostics beyond the current sticky PR comment support
 
 ## Later phases
 

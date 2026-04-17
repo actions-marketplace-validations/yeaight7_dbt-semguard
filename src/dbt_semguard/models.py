@@ -5,20 +5,65 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class EntityContract(BaseModel):
+def _strip_diagnostics(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _strip_diagnostics(item) for key, item in value.items() if key != "source"}
+    if isinstance(value, list):
+        return [_strip_diagnostics(item) for item in value]
+    return value
+
+
+def _strip_null_sources(value: Any) -> Any:
+    if isinstance(value, dict):
+        result: dict[str, Any] = {}
+        for key, item in value.items():
+            if key == "source" and item is None:
+                continue
+            result[key] = _strip_null_sources(item)
+        return result
+    if isinstance(value, list):
+        return [_strip_null_sources(item) for item in value]
+    return value
+
+
+class SemanticComparableModel(BaseModel):
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return _strip_null_sources(super().model_dump(*args, **kwargs))
+
+    def semantic_dump(self) -> dict[str, Any]:
+        return _strip_diagnostics(self.model_dump(mode="json"))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.semantic_dump() == other.semantic_dump()
+        return NotImplemented
+
+
+class SourceLocation(BaseModel):
+    file: str
+    line: int
+    end_line: int | None = None
+
+    def display(self) -> str:
+        return f"{self.file}:{self.line}"
+
+
+class EntityContract(SemanticComparableModel):
     name: str
     type: str
     expr: str
+    source: SourceLocation | None = None
 
 
-class DimensionContract(BaseModel):
+class DimensionContract(SemanticComparableModel):
     name: str
     type: str
     expr: str
     granularity: str | None = None
+    source: SourceLocation | None = None
 
 
-class MetricContract(BaseModel):
+class MetricContract(SemanticComparableModel):
     model_config = ConfigDict(populate_by_name=True)
 
     name: str
@@ -33,21 +78,23 @@ class MetricContract(BaseModel):
     input_metrics: list[str] = Field(default_factory=list)
     non_additive_dimension: dict[str, Any] | None = None
     owner_model: str | None = None
+    source: SourceLocation | None = None
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("by_alias", False)
         return super().model_dump(*args, **kwargs)
 
 
-class SemanticModelContract(BaseModel):
+class SemanticModelContract(SemanticComparableModel):
     name: str
     model_name: str
     agg_time_dimension: str | None = None
     entities: dict[str, EntityContract] = Field(default_factory=dict)
     dimensions: dict[str, DimensionContract] = Field(default_factory=dict)
+    source: SourceLocation | None = None
 
 
-class SemanticContract(BaseModel):
+class SemanticContract(SemanticComparableModel):
     semantic_models: dict[str, SemanticModelContract] = Field(default_factory=dict)
     metrics: dict[str, MetricContract] = Field(default_factory=dict)
 
@@ -67,6 +114,7 @@ class ChangeRecord(BaseModel):
     path: str
     before: Any = None
     after: Any = None
+    source: SourceLocation | None = None
 
 
 class Report(BaseModel):

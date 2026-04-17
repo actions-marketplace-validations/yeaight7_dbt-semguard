@@ -154,7 +154,7 @@ JSON reports contain:
 
 ## Coverage
 
-`dbt-semguard` `v0.1.1` covers the highest-value semantic changes in the latest dbt Semantic Layer spec.
+`dbt-semguard` `v0.2.0` covers the highest-value semantic changes in the latest dbt Semantic Layer spec.
 
 Covered extractors and inputs:
 
@@ -178,18 +178,20 @@ Current automated coverage:
 - YAML extraction for the latest spec
 - Manifest normalization
 - Semantic diff severity mapping for breaking and risky changes
+- Source diagnostics in extracted YAML contracts and change reports
 - CLI `extract`, `diff`, and `check`
+- Sticky PR comment delivery through the GitHub Action
 - Checkout-free git ref mode
 
 ## Current Limitations
 
-Known `v0.1.1` limitations are intentionally narrow:
+Known `v0.2.0` limitations are intentionally narrow:
 
 - Manifest parsing expects dbt `semantic_manifest.json`, not the general-purpose dbt `manifest.json` artifact.
 - The tool targets the latest Semantic Layer YAML spec only; legacy metric and semantic-model syntax is not included.
 - Rename handling is intentionally conservative: a rename is treated as a removal plus an addition.
-- File and line diagnostics are not emitted yet, even when the source could be traced.
-- GitHub integration stops at workflow summary plus artifact upload; it does not manage PR comments or review threads.
+- Source diagnostics are best-effort and currently strongest for YAML extraction; manifest-derived contracts may still lack file/line detail.
+- GitHub integration supports sticky PR comments for pull_request workflows, but does not yet manage review-thread lifecycles or inline annotations.
 
 ## GitHub Action
 
@@ -204,17 +206,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: yeaight7/dbt-semguard@v0.1.1
+      - uses: yeaight7/dbt-semguard@v0.2.0
         with:
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.sha }}
           fail-on: breaking
+          pr-comment: true
+          github-token: ${{ github.token }}
 ```
 
 The action writes:
 
 - a Markdown summary to the workflow summary
 - a JSON artifact named `semguard-report`
+- an optional sticky PR comment when `pr-comment: true`
 - a failing status when the configured threshold is reached
 
 This is the recommended setup when you want the semantic review to happen automatically on every PR.

@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.2.0 - 2026-04-17
+
+Focused release for PR usability and source-level diagnostics.
+
+### Added
+
+- YAML extraction now captures best-effort `source.file` and `source.line` diagnostics for semantic models, entities, dimensions, and metrics
+- Change records now carry source diagnostics through diffing and JSON output
+- Markdown and text reports now append `file:line` context when available
+- Added `semguard comment-pr` for sticky GitHub PR comment publishing
+- Composite action can now publish or update a sticky PR comment with `pr-comment: true`
+
+### Changed
+
+- README and action examples now target `v0.2.0`
+- Release coverage now explicitly documents diagnostics and PR comment support
+
 ## v0.1.1 - 2026-04-17
 
 Marketplace packaging follow-up release.

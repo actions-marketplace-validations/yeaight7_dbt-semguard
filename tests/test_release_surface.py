@@ -24,6 +24,7 @@ def test_action_invokes_semguard_without_eval_or_serialized_shell_args():
     assert "semguard diff --base-manifest" in action_text
     assert "semguard check --base-ref" in action_text
     assert "semguard check --base-manifest" in action_text
+    assert "semguard comment-pr" in action_text
 
 
 def test_ci_workflow_covers_manifest_inputs_and_published_consumer_path():
@@ -39,13 +40,20 @@ def test_ci_workflow_covers_manifest_inputs_and_published_consumer_path():
     assert any(step.get("uses") == "./" for step in manifest_steps)
     assert any("base-manifest" in str(step.get("with", {})) for step in manifest_steps)
     assert any("head-manifest" in str(step.get("with", {})) for step in manifest_steps)
-    assert any(step.get("uses") == "yeaight7/dbt-semguard@v0.1.1" for step in published_steps)
+    assert any(step.get("uses") == "yeaight7/dbt-semguard@v0.2.0" for step in published_steps)
+
+
+def test_action_exposes_pr_comment_input():
+    action = yaml.safe_load((ROOT / "action.yml").read_text(encoding="utf-8"))
+
+    assert "pr-comment" in action["inputs"]
+    assert "github-token" in action["inputs"]
 
 
 def test_readme_uses_marketplace_action_ref_and_relative_links():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "- uses: yeaight7/dbt-semguard@v0.1.1" in readme
+    assert "- uses: yeaight7/dbt-semguard@v0.2.0" in readme
     assert "uses: ./" not in readme
     assert "C:/Users/Rivero/" not in readme
     assert "(docs/contract-spec.md)" in readme
