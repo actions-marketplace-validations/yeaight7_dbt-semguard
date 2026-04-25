@@ -115,25 +115,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Seed published-consumer refs
-        run: |
-          git config user.email "ci@example.com"
-          git config user.name "CI"
-          mkdir -p models
-          cp tests/fixtures/projects/base/models/orders.yml models/orders.yml
-          git add models/orders.yml
-          git commit -m "base semantic model"
-          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          cp tests/fixtures/projects/breaking_change/models/orders.yml models/orders.yml
-          git add models/orders.yml
-          git commit -m "head semantic model"
-          echo "HEAD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      - uses: yeaight7/dbt-semguard@v0.4.0
+      - name: Run published action against intentional breaking change
+        id: semguard
+        uses: yeaight7/dbt-semguard@v0.4.0
+        continue-on-error: true
         with:
           base-ref: ${{ env.BASE_SHA }}
           head-ref: ${{ env.HEAD_SHA }}
           fail-on: breaking
+
+      - name: Assert published action blocks breaking changes
+        if: steps.semguard.outcome != 'failure'
+        run: |
+          echo "Expected dbt-semguard to fail on breaking changes, but it did not."
+          exit 1
 
   published-action-smoke-manifest:
     if: github.event_name != 'pull_request'
