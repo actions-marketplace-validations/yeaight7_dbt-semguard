@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Callable
 
 
 def load_yaml_documents_from_git_ref(project_dir: str | Path, git_ref: str) -> list[tuple[str, str]]:
