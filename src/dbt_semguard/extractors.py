@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import yaml
 
@@ -20,6 +20,21 @@ from dbt_semguard.models import (
 _SOURCE_LINE_KEY = "__semguard_source_line__"
 _SOURCE_END_LINE_KEY = "__semguard_source_end_line__"
 _SOURCE_KEY_LINES_KEY = "__semguard_source_key_lines__"
+_DEFAULT_INCLUDE_PATTERNS = (
+    "models/**/*.yml",
+    "models/**/*.yaml",
+    "metrics/**/*.yml",
+    "metrics/**/*.yaml",
+    "semantic_models/**/*.yml",
+    "semantic_models/**/*.yaml",
+)
+_DEFAULT_EXCLUDE_PATTERNS = (
+    "target/**",
+    "dbt_packages/**",
+    ".venv/**",
+    "venv/**",
+    ".github/**",
+)
 
 
 class _LineLoader(yaml.SafeLoader):
