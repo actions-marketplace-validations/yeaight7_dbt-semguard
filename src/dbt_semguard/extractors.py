@@ -293,9 +293,21 @@ def _attach_column_semantics(contract: SemanticModelContract, column: dict[str, 
 
 
 def _build_metric_contract(payload: dict[str, Any], owner_model: str | None, source_file: str | None = None) -> MetricContract:
+    metric_name = _required_value(
+        payload,
+        key="name",
+        source_file=source_file,
+        kind="metric",
+    )
+    metric_type = _required_value(
+        payload,
+        key="type",
+        source_file=source_file,
+        kind=f"metric '{metric_name}'",
+    )
     return MetricContract(
-        name=payload["name"],
-        type=payload["type"],
+        name=str(metric_name),
+        type=str(metric_type),
         label=payload.get("label"),
         agg=payload.get("agg"),
         expr=_normalize_value(payload.get("expr")),
@@ -317,6 +329,125 @@ def _build_metric_contract(payload: dict[str, Any], owner_model: str | None, sou
         owner_model=owner_model,
         source=_source_for(payload, source_file),
     )
+
+def _required_value(
+    payload: dict[str, Any],
+    key: str,
+    source_file: str | None,
+    kind: str,
+    fallback_payload: dict[str, Any] | None = None,
+    fallback_key: str | None = None,
+) -> Any:
+    value = payload.get(key)
+    if value is not None:
+        return value
+    raise _yaml_validation_error(
+        source_file,
+        f"Invalid {kind} definition: missing required '{key}'.",
+        payload=payload if fallback_payload is None else fallback_payload,
+        key=fallback_key or key,
+    )
+
+
+def _yaml_validation_error(
+    source_file: str | None,
+    message: str,
+    payload: dict[str, Any] | None = None,
+    key: str | None = None,
+) -> ValueError:
+    location = _error_location(source_file, payload=payload, key=key)
+    if location:
+        return ValueError(f"{message} ({location})")
+    return ValueError(message)
+
+
+def _error_location(source_file: str | None, payload: dict[str, Any] | None, key: str | None) -> str:
+    if source_file is None:
+        return ""
+    line = None
+    if isinstance(payload, dict):
+        if key is not None:
+            key_lines = payload.get(_SOURCE_KEY_LINES_KEY)
+            if isinstance(key_lines, dict):
+                line_value = key_lines.get(key)
+                if isinstance(line_value, int):
+                    line = line_value
+        if line is None:
+            line_value = payload.get(_SOURCE_LINE_KEY)
+            if isinstance(line_value, int):
+                line = line_value
+    return f"{source_file}:{line}" if line is not None else source_file
+
+
+def _load_yaml_discovery_filters(project_dir: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    config_path = project_dir / ".semguard.yml"
+    includes = _DEFAULT_INCLUDE_PATTERNS
+    excludes = _DEFAULT_EXCLUDE_PATTERNS
+
+    if not config_path.exists():
+        return includes, excludes
+
+    try:
+        config_data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        mark = getattr(exc, "problem_mark", None)
+        line_suffix = f":{mark.line + 1}" if mark is not None else ""
+        message = getattr(exc, "problem", None) or str(exc)
+        raise ValueError(f"Invalid .semguard.yml at '{config_path}{line_suffix}': {message}") from exc
+    if config_data is None:
+        return includes, excludes
+    if not isinstance(config_data, dict):
+        raise ValueError(f"Invalid .semguard.yml: expected a mapping at '{config_path}'.")
+
+    includes = _coerce_pattern_list(config_data.get("include"), default=_DEFAULT_INCLUDE_PATTERNS, key="include")
+    excludes = _coerce_pattern_list(config_data.get("exclude"), default=_DEFAULT_EXCLUDE_PATTERNS, key="exclude")
+    return includes, excludes
+
+
+def _coerce_pattern_list(value: Any, default: tuple[str, ...], key: str) -> tuple[str, ...]:
+    if value is None:
+        return default
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError(f"Invalid .semguard.yml: '{key}' must be a list of glob patterns.")
+    return tuple(item.strip() for item in value if item.strip())
+
+
+def _build_file_filter(include_patterns: tuple[str, ...], exclude_patterns: tuple[str, ...]) -> Callable[[str], bool]:
+    include_regexes = [_glob_pattern_to_regex(pattern) for pattern in include_patterns]
+    exclude_regexes = [_glob_pattern_to_regex(pattern) for pattern in exclude_patterns]
+
+    def _matches(path: str) -> bool:
+        normalized = path.strip("/")
+        if any(pattern.fullmatch(normalized) for pattern in exclude_regexes):
+            return False
+        return any(pattern.fullmatch(normalized) for pattern in include_regexes)
+
+    return _matches
+
+
+def _glob_pattern_to_regex(pattern: str) -> re.Pattern[str]:
+    normalized = pattern.strip()
+    parts: list[str] = ["^"]
+    i = 0
+    while i < len(normalized):
+        char = normalized[i]
+        if char == "*":
+            if i + 1 < len(normalized) and normalized[i + 1] == "*":
+                i += 1
+                if i + 1 < len(normalized) and normalized[i + 1] == "/":
+                    i += 1
+                    parts.append("(?:.*/)?")
+                else:
+                    parts.append(".*")
+            else:
+                parts.append("[^/]*")
+        elif char == "?":
+            parts.append("[^/]")
+        else:
+            parts.append(re.escape(char))
+        i += 1
+    parts.append("$")
+    return re.compile("".join(parts))
 
 
 def _build_metric_contract_from_semantic_manifest(
