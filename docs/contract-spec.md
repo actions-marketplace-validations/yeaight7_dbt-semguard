@@ -89,9 +89,7 @@ Contracts may also include optional `source` diagnostics on semantic models, ent
 
 - `v0.3` does not infer renames.
 - YAML extraction can emit `source.file` and `source.line` diagnostics; manifest inputs may not.
-- Latest spec assumptions follow dbt docs updated April 16, 2026:
-  - `semantic_model` lives under `models`
-  - entities and dimensions live under `columns`
-  - simple metrics live within the model
-  - advanced metrics remain under top-level `metrics`
+- YAML extraction supports both dbt specs documented on April 23, 2026:
+  - latest spec: `semantic_model` lives under `models`, entities/dimensions live under `columns`, and simple metrics live within the model
+  - legacy spec: top-level `semantic_models`, `measures`, and `type_params` are normalized into the same contract shape
   - advanced metric families include ratio, derived, cumulative, and conversion

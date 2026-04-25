@@ -196,6 +196,7 @@ JSON reports contain:
 Covered extractors and inputs:
 
 - Latest-spec YAML projects
+- Legacy top-level `semantic_models` / `metrics` YAML projects
 - Explicit dbt `semantic_manifest.json` input
 - Canonical contract JSON emitted by `semguard extract`
 
@@ -231,7 +232,7 @@ Known `v0.4.0` limitations are intentionally narrow:
 - There is no `fail-on: none` advisory-only mode yet.
 - There is no allowlist for intentional semantic changes yet.
 - Manifest parsing expects dbt `semantic_manifest.json`, not the general-purpose dbt `manifest.json` artifact.
-- The tool targets the latest Semantic Layer YAML spec only; legacy metric and semantic-model syntax is not included.
+- Legacy YAML support covers top-level `semantic_models`, `measures`, and `type_params`, but cross-project ref semantics are still normalized conservatively into the single `model_name` contract field.
 - Rename handling is intentionally conservative: a rename is treated as a removal plus an addition.
 - Source diagnostics are best-effort and currently strongest for YAML extraction; manifest-derived contracts may still lack file/line detail.
 - GitHub integration supports sticky PR comments for pull_request workflows, but does not yet manage review-thread lifecycles or inline annotations.

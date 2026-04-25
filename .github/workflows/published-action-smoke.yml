@@ -37,7 +37,7 @@ jobs:
 
       - name: Run published action against intentional breaking change
         id: semguard
-        uses: yeaight7/dbt-semguard@v0.4.0
+        uses: ./
         continue-on-error: true
         with:
           base-ref: ${{ env.BASE_SHA }}
@@ -98,7 +98,7 @@ jobs:
 
       - name: Run published action against manifest fixtures
         id: semguard
-        uses: yeaight7/dbt-semguard@v0.4.0
+        uses: ./
         continue-on-error: true
         with:
           base-manifest: tmp artifacts/published base manifest/semantic_manifest.json

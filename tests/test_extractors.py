@@ -39,6 +39,20 @@ def test_yaml_extractor_builds_latest_spec_contract():
     assert contract.metrics["aov"].source.line == 36
 
 
+def test_yaml_extractor_builds_legacy_spec_contract_equivalent_to_latest_spec():
+    latest_contract = extract_contract_from_yaml_dir(FIXTURES / "projects" / "base")
+    legacy_contract = extract_contract_from_yaml_dir(FIXTURES / "projects" / "legacy_base")
+
+    assert legacy_contract.semantic_dump() == latest_contract.semantic_dump()
+    assert legacy_contract.semantic_models["orders"].source is not None
+    assert legacy_contract.semantic_models["orders"].source.file == "models/orders.yml"
+    assert legacy_contract.semantic_models["orders"].source.line == 2
+    assert legacy_contract.semantic_models["orders"].entities["order"].source is not None
+    assert legacy_contract.semantic_models["orders"].entities["order"].source.line == 7
+    assert legacy_contract.metrics["gross_revenue"].source is not None
+    assert legacy_contract.metrics["gross_revenue"].source.line == 33
+
+
 def test_yaml_extractor_ignores_cosmetic_metadata():
     base = extract_contract_from_yaml_dir(FIXTURES / "projects" / "base")
     safe = extract_contract_from_yaml_dir(FIXTURES / "projects" / "safe_change")
@@ -179,6 +193,123 @@ metrics:
     assert signup_conversion.base_metric == "signups"
     assert signup_conversion.conversion_metric == "paid_signups"
     assert signup_conversion.constant_properties == '[{"base_property": "plan", "conversion_property": "plan"}]'
+
+
+def test_yaml_extractor_supports_legacy_type_params_metrics(tmp_path: Path):
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    (models_dir / "orders.yml").write_text(
+        """semantic_models:
+  - name: orders
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: user
+        type: primary
+        expr: user_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: revenue_daily
+        agg: sum
+        expr: order_total
+      - name: signups
+        agg: count
+        expr: 1
+      - name: paid_signups
+        agg: count
+        expr: 1
+
+metrics:
+  - name: revenue_daily
+    type: simple
+    type_params:
+      measure: revenue_daily
+      metric_aggregation_params:
+        semantic_model: orders
+        agg: sum
+  - name: signups
+    type: simple
+    type_params:
+      measure: signups
+      metric_aggregation_params:
+        semantic_model: orders
+        agg: count
+  - name: paid_signups
+    type: simple
+    type_params:
+      measure: paid_signups
+      metric_aggregation_params:
+        semantic_model: orders
+        agg: count
+  - name: revenue_mtd
+    type: cumulative
+    type_params:
+      measure: revenue_daily
+      cumulative_type_params:
+        window: 30d
+        grain_to_date: month
+        period_agg: sum
+  - name: signup_conversion
+    type: conversion
+    type_params:
+      conversion_type_params:
+        entity: user
+        calculation: conversion_rate
+        base_measure: signups
+        conversion_measure: paid_signups
+        constant_properties:
+          - base_property: plan
+            conversion_property: plan
+  - name: blended_revenue
+    type: derived
+    type_params:
+      expr: revenue_daily + revenue_daily
+      metrics:
+        - name: revenue_daily
+          alias: current_revenue
+        - name: revenue_daily
+          alias: previous_revenue
+          offset_window: 7 days
+""",
+        encoding="utf-8",
+    )
+
+    contract = extract_contract_from_yaml_dir(tmp_path)
+
+    revenue_daily = contract.metrics["revenue_daily"]
+    revenue_mtd = contract.metrics["revenue_mtd"]
+    signup_conversion = contract.metrics["signup_conversion"]
+    blended_revenue = contract.metrics["blended_revenue"]
+
+    assert revenue_daily.metric_type == "simple"
+    assert revenue_daily.agg == "sum"
+    assert revenue_daily.expr == "order_total"
+    assert revenue_daily.owner_model == "orders"
+
+    assert revenue_mtd.metric_type == "cumulative"
+    assert revenue_mtd.input_metric == "revenue_daily"
+    assert revenue_mtd.window == "30d"
+    assert revenue_mtd.grain_to_date == "month"
+    assert revenue_mtd.period_agg == "sum"
+
+    assert signup_conversion.metric_type == "conversion"
+    assert signup_conversion.entity == "user"
+    assert signup_conversion.calculation == "conversion_rate"
+    assert signup_conversion.base_metric == "signups"
+    assert signup_conversion.conversion_metric == "paid_signups"
+    assert signup_conversion.constant_properties == '[{"base_property": "plan", "conversion_property": "plan"}]'
+
+    assert blended_revenue.metric_type == "derived"
+    assert blended_revenue.expr == "revenue_daily + revenue_daily"
+    assert blended_revenue.input_metrics == [
+        '{"alias": "current_revenue", "name": "revenue_daily"}',
+        '{"alias": "previous_revenue", "name": "revenue_daily", "offset_window": "7 days"}',
+    ]
 
 
 def test_manifest_extractor_supports_cumulative_and_conversion_metrics(tmp_path: Path):

@@ -193,6 +193,8 @@ def _build_contract_from_yaml_documents(documents: Iterable[tuple[str, str]]) ->
             for payload in payloads:
                 if not isinstance(payload, dict):
                     continue
+                legacy_measures_by_model: dict[str, dict[str, dict[str, Any]]] = {}
+                legacy_model_default_agg_time_dimensions: dict[str, str | None] = {}
                 for model in payload.get("models", []) or []:
                     if not isinstance(model, dict):
                         continue
@@ -235,10 +237,29 @@ def _build_contract_from_yaml_documents(documents: Iterable[tuple[str, str]]) ->
                             continue
                         metric = _build_metric_contract(metric_payload, owner_model=contract.name, source_file=source_file)
                         metrics[metric.name] = metric
+                for semantic_model_payload in payload.get("semantic_models", []) or []:
+                    if not isinstance(semantic_model_payload, dict):
+                        continue
+                    contract = _build_legacy_yaml_semantic_model_contract(semantic_model_payload, source_file)
+                    semantic_models[contract.name] = contract
+                    legacy_model_default_agg_time_dimensions[contract.name] = contract.agg_time_dimension
+                    legacy_measures_by_model[contract.name] = {
+                        measure["name"]: measure
+                        for measure in semantic_model_payload.get("measures", []) or []
+                        if isinstance(measure, dict) and "name" in measure
+                    }
                 for metric_payload in payload.get("metrics", []) or []:
                     if not isinstance(metric_payload, dict):
                         continue
-                    metric = _build_metric_contract(metric_payload, owner_model=None, source_file=source_file)
+                    if payload.get("semantic_models") or metric_payload.get("type_params"):
+                        metric = _build_metric_contract_from_semantic_manifest(
+                            metric_payload,
+                            measures_by_model=legacy_measures_by_model,
+                            model_default_agg_time_dimensions=legacy_model_default_agg_time_dimensions,
+                            source_file=source_file,
+                        )
+                    else:
+                        metric = _build_metric_contract(metric_payload, owner_model=None, source_file=source_file)
                     metrics[metric.name] = metric
 
         except yaml.YAMLError as exc:
@@ -290,6 +311,76 @@ def _attach_column_semantics(contract: SemanticModelContract, column: dict[str, 
             granularity=column.get("granularity"),
             source=_source_for_key(column, "dimension", source_file, dimension_payload),
         )
+
+
+def _build_legacy_yaml_semantic_model_contract(payload: dict[str, Any], source_file: str) -> SemanticModelContract:
+    semantic_name = str(
+        _required_value(
+            payload,
+            key="name",
+            source_file=source_file,
+            kind="semantic model",
+        )
+    )
+    model_reference = payload.get("model_name") or payload.get("model") or semantic_name
+    contract = SemanticModelContract(
+        name=semantic_name,
+        model_name=_normalize_legacy_model_reference(model_reference),
+        agg_time_dimension=_nested_mapping_get(payload, "defaults", "agg_time_dimension"),
+        source=_source_for(payload, source_file),
+    )
+
+    for entity_payload in payload.get("entities", []) or []:
+        if not isinstance(entity_payload, dict):
+            continue
+        entity_name = str(
+            _required_value(
+                entity_payload,
+                key="name",
+                source_file=source_file,
+                kind="entity",
+            )
+        )
+        entity_type = _required_value(
+            entity_payload,
+            key="type",
+            source_file=source_file,
+            kind=f"entity '{entity_name}'",
+        )
+        contract.entities[entity_name] = EntityContract(
+            name=entity_name,
+            type=str(entity_type),
+            expr=str(entity_payload.get("expr") or entity_name),
+            source=_source_for(entity_payload, source_file),
+        )
+
+    for dimension_payload in payload.get("dimensions", []) or []:
+        if not isinstance(dimension_payload, dict):
+            continue
+        dimension_name = str(
+            _required_value(
+                dimension_payload,
+                key="name",
+                source_file=source_file,
+                kind="dimension",
+            )
+        )
+        dimension_type = _required_value(
+            dimension_payload,
+            key="type",
+            source_file=source_file,
+            kind=f"dimension '{dimension_name}'",
+        )
+        contract.dimensions[dimension_name] = DimensionContract(
+            name=dimension_name,
+            type=str(dimension_type),
+            expr=str(dimension_payload.get("expr") or dimension_name),
+            granularity=_nested_mapping_get(dimension_payload, "type_params", "time_granularity")
+            or dimension_payload.get("granularity"),
+            source=_source_for(dimension_payload, source_file),
+        )
+
+    return contract
 
 
 def _build_metric_contract(payload: dict[str, Any], owner_model: str | None, source_file: str | None = None) -> MetricContract:
@@ -474,6 +565,7 @@ def _build_metric_contract_from_semantic_manifest(
     payload: dict[str, Any],
     measures_by_model: dict[str, dict[str, dict[str, Any]]],
     model_default_agg_time_dimensions: dict[str, str | None],
+    source_file: str | None = None,
 ) -> MetricContract:
     type_params = payload.get("type_params") or {}
     metric_aggregation_params = type_params.get("metric_aggregation_params") or {}
@@ -581,6 +673,7 @@ def _build_metric_contract_from_semantic_manifest(
         else None,
         non_additive_dimension=non_additive_dimension,
         owner_model=owner_model,
+        source=_source_for(payload, source_file),
     )
 
 
@@ -589,8 +682,9 @@ def _normalize_metric_ref(value: Any) -> str | None:
         return None
     if isinstance(value, dict):
         value = _without_loader_metadata(value)
-        if "name" in value:
-            return str(value["name"])
+        for key in ("name", "measure", "metric"):
+            if key in value:
+                return str(value[key])
         return json.dumps(value, sort_keys=True)
     return str(value)
 
@@ -674,6 +768,14 @@ def _semantic_model_backing_model_name(node: dict[str, Any]) -> str:
             if value:
                 return str(value)
     return str(node.get("model_name") or node["name"])
+
+
+def _normalize_legacy_model_reference(value: Any) -> str:
+    text = str(value).strip()
+    quoted_args = re.findall(r"""['"]([^'"]+)['"]""", text)
+    if text.startswith("ref(") and quoted_args:
+        return quoted_args[-1]
+    return text
 
 
 def _nested_mapping_get(value: Any, *path: str) -> Any:

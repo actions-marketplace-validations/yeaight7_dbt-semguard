@@ -10,6 +10,17 @@ PR_COMMENT_MARKER = "<!-- dbt-semguard -->"
 RequestFn = Callable[[str, str, str, dict[str, Any] | None], Any]
 
 
+class GitHubRequestError(ValueError):
+    def __init__(self, status_code: int, details: str):
+        self.status_code = status_code
+        self.details = details
+        super().__init__(f"GitHub API request failed ({status_code}): {details}")
+
+
+class GitHubPermissionError(GitHubRequestError):
+    pass
+
+
 def upsert_pr_comment(
     *,
     repo: str,
@@ -75,7 +86,9 @@ def _request_json(method: str, url: str, token: str, payload: dict[str, Any] | N
             raw = response.read()
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
-        raise ValueError(f"GitHub API request failed ({exc.code}): {details}") from exc
+        if exc.code in {401, 403}:
+            raise GitHubPermissionError(exc.code, details) from exc
+        raise GitHubRequestError(exc.code, details) from exc
 
     if not raw:
         return None

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from dbt_semguard.extractors import (
     extract_contract_from_manifest,
     extract_contract_from_yaml_dir,
 )
-from dbt_semguard.github import upsert_pr_comment
+from dbt_semguard.github import GitHubPermissionError, upsert_pr_comment
 from dbt_semguard.models import SemanticContract
 from dbt_semguard.reporting import build_report, render_report
 
@@ -50,7 +51,7 @@ def _build_parser() -> argparse.ArgumentParser:
     comment_parser.add_argument("--body-file", required=True)
     comment_parser.add_argument("--repo", required=True)
     comment_parser.add_argument("--pr-number", type=int, required=True)
-    comment_parser.add_argument("--github-token", required=True)
+    comment_parser.add_argument("--github-token")
     comment_parser.add_argument("--mode", choices=["sticky", "create"], default="sticky")
 
     for name in ("diff", "check"):
@@ -101,14 +102,28 @@ def _run_compare(args: argparse.Namespace) -> int:
 
 def _run_comment_pr(args: argparse.Namespace) -> int:
     body = Path(args.body_file).read_text(encoding="utf-8")
-    upsert_pr_comment(
-        repo=args.repo,
-        pull_request_number=args.pr_number,
-        token=args.github_token,
-        body=body,
-        mode=args.mode,
-    )
+    token = _resolve_github_token(args.github_token)
+    try:
+        upsert_pr_comment(
+            repo=args.repo,
+            pull_request_number=args.pr_number,
+            token=token,
+            body=body,
+            mode=args.mode,
+        )
+    except GitHubPermissionError as exc:
+        print(
+            f"dbt-semguard: skipping PR comment because the GitHub API denied permission ({exc.status_code}).",
+            file=sys.stderr,
+        )
     return 0
+
+
+def _resolve_github_token(explicit_token: str | None) -> str:
+    for token in (explicit_token, os.getenv("SEMGUARD_GITHUB_TOKEN"), os.getenv("GITHUB_TOKEN")):
+        if token:
+            return token
+    raise ValueError("GitHub token required for comment-pr. Pass --github-token or set SEMGUARD_GITHUB_TOKEN/GITHUB_TOKEN.")
 
 
 def _load_compare_inputs(args: argparse.Namespace) -> tuple[str, SemanticContract, SemanticContract]:

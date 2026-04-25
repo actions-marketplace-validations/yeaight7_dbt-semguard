@@ -15,8 +15,10 @@ def test_action_installs_from_action_path_and_has_branding():
 
     assert action["branding"] == {"icon": "shield", "color": "blue"}
     install_step = next(step for step in action["runs"]["steps"] if step.get("name") == "Install dbt-semguard")
+    assert "python -m venv" in install_step["run"]
     assert '${{ github.action_path }}' in install_step["run"]
-    assert "python -m pip install ." not in install_step["run"]
+    assert "GITHUB_PATH" in install_step["run"]
+    assert 'python -m pip install "${{ github.action_path }}"' not in install_step["run"]
 
 
 def test_action_invokes_semguard_without_eval_or_serialized_shell_args():
@@ -29,6 +31,7 @@ def test_action_invokes_semguard_without_eval_or_serialized_shell_args():
     assert "semguard check --base-ref" in action_text
     assert "semguard check --base-manifest" in action_text
     assert "semguard comment-pr" in action_text
+    assert "--github-token" not in action_text
 
 
 def test_ci_workflow_uses_only_local_action_smoke_jobs():
@@ -114,8 +117,8 @@ def test_published_action_smoke_workflow_runs_only_after_release_or_manual_dispa
     assert "workflow_dispatch" in triggers
     assert "published-action-smoke" in jobs
     assert "published-action-smoke-manifest" in jobs
-    assert "yeaight7/dbt-semguard@" in workflow_text
-    assert "uses: ./" not in workflow_text
+    assert "yeaight7/dbt-semguard@" not in workflow_text
+    assert "uses: ./" in workflow_text
 
     manifest_steps = jobs["published-action-smoke-manifest"]["steps"]
     fixture_step = next(step for step in manifest_steps if step.get("name") == "Create published-consumer manifest fixtures with hostile paths")
@@ -130,6 +133,8 @@ def test_action_exposes_pr_comment_input():
 
     assert "pr-comment" in action["inputs"]
     assert "github-token" in action["inputs"]
+    publish_step = next(step for step in action["runs"]["steps"] if step.get("name") == "Publish PR comment")
+    assert publish_step["env"]["SEMGUARD_GITHUB_TOKEN"] == "${{ inputs.github-token }}"
 
 
 def test_readme_uses_marketplace_action_ref_and_relative_links():

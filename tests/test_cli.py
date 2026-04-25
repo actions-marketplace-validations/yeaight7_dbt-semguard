@@ -3,6 +3,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from dbt_semguard import cli as cli_module
+from dbt_semguard.github import GitHubPermissionError, GitHubRequestError
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -98,3 +103,179 @@ def test_diff_command_renders_markdown_with_diagnostics(tmp_path: Path):
     assert result.returncode == 0, result.stderr
     assert "Simple metric `gross_revenue` changed aggregation from `sum` to `avg`." in result.stdout
     assert "models/orders.yml:21" in result.stdout
+
+
+def test_comment_pr_prefers_explicit_token_over_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    body_file = tmp_path / "body.md"
+    body_file.write_text("hello", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_upsert_pr_comment(**kwargs):
+        captured.update(kwargs)
+        return "created"
+
+    monkeypatch.setenv("SEMGUARD_GITHUB_TOKEN", "semguard-env-token")
+    monkeypatch.setenv("GITHUB_TOKEN", "github-env-token")
+    monkeypatch.setattr(cli_module, "upsert_pr_comment", fake_upsert_pr_comment)
+
+    result = cli_module.main(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "yeaight7/dbt-semguard",
+            "--pr-number",
+            "12",
+            "--github-token",
+            "flag-token",
+        ]
+    )
+
+    assert result == 0
+    assert captured["token"] == "flag-token"
+
+
+def test_comment_pr_prefers_semguard_token_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    body_file = tmp_path / "body.md"
+    body_file.write_text("hello", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_upsert_pr_comment(**kwargs):
+        captured.update(kwargs)
+        return "created"
+
+    monkeypatch.setenv("SEMGUARD_GITHUB_TOKEN", "semguard-env-token")
+    monkeypatch.setenv("GITHUB_TOKEN", "github-env-token")
+    monkeypatch.setattr(cli_module, "upsert_pr_comment", fake_upsert_pr_comment)
+
+    result = cli_module.main(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "yeaight7/dbt-semguard",
+            "--pr-number",
+            "12",
+        ]
+    )
+
+    assert result == 0
+    assert captured["token"] == "semguard-env-token"
+
+
+def test_comment_pr_falls_back_to_github_token_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    body_file = tmp_path / "body.md"
+    body_file.write_text("hello", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_upsert_pr_comment(**kwargs):
+        captured.update(kwargs)
+        return "created"
+
+    monkeypatch.delenv("SEMGUARD_GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("GITHUB_TOKEN", "github-env-token")
+    monkeypatch.setattr(cli_module, "upsert_pr_comment", fake_upsert_pr_comment)
+
+    result = cli_module.main(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "yeaight7/dbt-semguard",
+            "--pr-number",
+            "12",
+        ]
+    )
+
+    assert result == 0
+    assert captured["token"] == "github-env-token"
+
+
+def test_comment_pr_errors_when_no_token_is_available(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    body_file = tmp_path / "body.md"
+    body_file.write_text("hello", encoding="utf-8")
+
+    monkeypatch.delenv("SEMGUARD_GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+    result = cli_module.main(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "yeaight7/dbt-semguard",
+            "--pr-number",
+            "12",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert result == 2
+    assert "GitHub token" in captured.err
+
+
+def test_comment_pr_skips_permission_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    body_file = tmp_path / "body.md"
+    body_file.write_text("hello", encoding="utf-8")
+
+    monkeypatch.setenv("SEMGUARD_GITHUB_TOKEN", "semguard-env-token")
+
+    def fake_upsert_pr_comment(**kwargs):
+        raise GitHubPermissionError(403, "forbidden")
+
+    monkeypatch.setattr(cli_module, "upsert_pr_comment", fake_upsert_pr_comment)
+
+    result = cli_module.main(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "yeaight7/dbt-semguard",
+            "--pr-number",
+            "12",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert "skipping PR comment" in captured.err
+
+
+def test_comment_pr_returns_error_for_non_permission_github_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    body_file = tmp_path / "body.md"
+    body_file.write_text("hello", encoding="utf-8")
+
+    monkeypatch.setenv("SEMGUARD_GITHUB_TOKEN", "semguard-env-token")
+
+    def fake_upsert_pr_comment(**kwargs):
+        raise GitHubRequestError(500, "server error")
+
+    monkeypatch.setattr(cli_module, "upsert_pr_comment", fake_upsert_pr_comment)
+
+    result = cli_module.main(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "yeaight7/dbt-semguard",
+            "--pr-number",
+            "12",
+        ]
+    )
+
+    captured = capsys.readouterr()
+
+    assert result == 2
+    assert "server error" in captured.err
