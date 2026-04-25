@@ -14,7 +14,7 @@ models:
           name: customer
           type: foreign
       - name: ordered_at
-        granularity: week   # changing `day` for `week` here would cause a breaking error
+        granularity: week
         dimension:
           type: time
     metrics:
