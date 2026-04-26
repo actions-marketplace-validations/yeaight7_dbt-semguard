@@ -51,6 +51,17 @@ def test_action_defines_structured_outputs_for_ci_consumers():
     assert action["outputs"]["safe-count"]["value"] == "${{ steps.generate.outputs.safe-count }}"
 
 
+def test_action_input_descriptions_document_modes_thresholds_and_artifacts():
+    action = load_action()
+
+    assert "breaking" in action["inputs"]["fail-on"]["description"]
+    assert "risky" in action["inputs"]["fail-on"]["description"]
+    assert "safe" in action["inputs"]["fail-on"]["description"]
+    assert "sticky" in action["inputs"]["pr-comment-mode"]["description"]
+    assert "create" in action["inputs"]["pr-comment-mode"]["description"]
+    assert "JSON artifact" in action["inputs"]["artifact-name"]["description"]
+
+
 def test_action_run_scripts_do_not_embed_github_expressions():
     for step in action_steps():
         run = step.get("run")
@@ -58,6 +69,19 @@ def test_action_run_scripts_do_not_embed_github_expressions():
             continue
         assert "${{ inputs." not in run, step.get("name")
         assert "${{ github." not in run, step.get("name")
+
+
+def test_action_report_paths_are_env_driven_not_hardcoded():
+    generate_step = next(step for step in action_steps() if step.get("id") == "generate")
+    publish_step = next(step for step in action_steps() if step.get("name") == "Publish PR comment")
+    upload_step = next(step for step in action_steps() if step.get("uses") == "actions/upload-artifact@v4")
+
+    assert "semguard-report.json" not in generate_step["run"]
+    assert "semguard-report.md" not in generate_step["run"]
+    assert 'REPORT_DIR' in generate_step["env"]
+    assert 'REPORT_BASENAME' in generate_step["env"]
+    assert '"$REPORT_MD_PATH"' in publish_step["run"]
+    assert upload_step["with"]["path"] == "${{ env.REPORT_JSON_PATH }}"
 
 
 def test_action_upload_artifact_always_runs():
@@ -98,6 +122,15 @@ def test_ci_workflow_uses_only_local_action_smoke_jobs():
     assert any("head-manifest" in str(step.get("with", {})) for step in manifest_steps)
 
 
+def test_ci_workflow_installs_pinned_dev_requirements():
+    workflow = load_workflow("ci.yml")
+    install_step = next(step for step in workflow["jobs"]["test"]["steps"] if step.get("name") == "Install package")
+    run = install_step["run"]
+
+    assert "requirements-dev.txt" in run
+    assert "python -m pip install -e . --no-deps" in run
+
+
 def test_ci_workflow_seeds_real_git_refs_from_breaking_change_fixtures():
     workflow = load_workflow("ci.yml")
     seed_step = next(step for step in workflow["jobs"]["action-smoke-git"]["steps"] if step.get("name") == "Seed comparison refs")
@@ -127,9 +160,9 @@ def test_ci_workflow_asserts_breaking_change_failure_not_just_any_failure():
     assert 'git cat-file -e "${BASE_SHA}^{commit}"' in run
     assert 'git cat-file -e "${HEAD_SHA}^{commit}"' in run
     assert 'steps.semguard.outcome' in (str(assertion_step.get("if", "")) + run)
-    assert "semguard-report.json" in run
-    assert '"highest_severity"' in run
-    assert '"blocking"' in run
+    assert 'steps.semguard.outputs.highest-severity' in run
+    assert 'steps.semguard.outputs.blocking' in run
+    assert 'steps.semguard.outputs.breaking-count' in run
 
 
 def test_ci_workflow_manifest_smoke_uses_breaking_manifest_change():
@@ -143,7 +176,8 @@ def test_ci_workflow_manifest_smoke_uses_breaking_manifest_change():
     assert '"avg"' in fixture_run
 
     assertion_step = next(step for step in steps if step.get("name") == "Assert manifest smoke failure")
-    assert "gross_revenue" in assertion_step["run"]
+    assert 'steps.semguard.outputs.highest-severity' in assertion_step["run"]
+    assert 'steps.semguard.outputs.blocking' in assertion_step["run"]
 
 
 def test_published_action_smoke_workflow_runs_only_after_release_or_manual_dispatch():
@@ -181,18 +215,18 @@ def test_action_exposes_pr_comment_input():
 def test_readme_uses_marketplace_action_ref_and_relative_links():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "- uses: yeaight7/dbt-semguard@v0.5.0" in readme
+    assert "- uses: yeaight7/dbt-semguard@v0.5.1" in readme
     assert "uses: ./" not in readme
     assert "C:/Users/Rivero/" not in readme
     assert "(docs/contract-spec.md)" in readme
     assert "(examples/ecommerce_dbt_project)" in readme
 
 
-def test_pyproject_includes_v050_packaging_metadata():
+def test_pyproject_includes_v051_packaging_metadata():
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     project = pyproject["project"]
 
-    assert project["version"] == "0.5.0"
+    assert project["version"] == "0.5.1"
     assert project["authors"] == [{"name": "yeaight7", "email": "rivero4javier@outlook.es"}]
     assert "keywords" in project
     assert {"dbt", "semantic-layer", "metrics", "github-actions"}.issubset(set(project["keywords"]))
@@ -204,3 +238,7 @@ def test_pyproject_includes_v050_packaging_metadata():
     assert project["urls"]["Issues"] == "https://github.com/yeaight7/dbt-semguard/issues"
     assert project["urls"]["Changelog"] == "https://github.com/yeaight7/dbt-semguard/blob/main/CHANGELOG.md"
     assert project["urls"]["Documentation"] == "https://github.com/yeaight7/dbt-semguard#readme"
+    requirements_dev = (ROOT / "requirements-dev.txt").read_text(encoding="utf-8")
+    assert "pydantic==" in requirements_dev
+    assert "PyYAML==" in requirements_dev
+    assert "pytest==" in requirements_dev

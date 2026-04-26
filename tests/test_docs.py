@@ -27,7 +27,7 @@ def test_readme_covers_github_install_source_install_and_action_permissions():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "## Install From GitHub" in readme
-    assert 'python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.0"' in readme
+    assert 'python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.1"' in readme
     assert "Python 3.11 or newer" in readme
     assert "## Install From Source" in readme
     assert "python -m pip install ." in readme
@@ -38,16 +38,24 @@ def test_readme_covers_github_install_source_install_and_action_permissions():
     assert "forked pull requests" in readme
     assert "steps.semguard.outputs.highest-severity" in readme
     assert "steps.semguard.outputs.blocking" in readme
+    assert "pr-comment-mode" in readme
+    assert "`sticky`" in readme
+    assert "`create`" in readme
+    assert "No semantic changes detected." in readme
+    assert "docs/troubleshooting.md" in readme
+    assert '"highest_severity": "breaking"' in readme
+    assert "## dbt-semguard report" in readme
 
 
-def test_changelog_v050_describes_action_hardening_and_outputs():
+def test_changelog_v051_describes_docs_and_action_polish():
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "## v0.5.0" in changelog
-    assert "shell injection" in changelog.lower()
-    assert "action outputs" in changelog.lower()
+    assert "## v0.5.1" in changelog
+    assert "security.md" in changelog.lower()
+    assert "contributing.md" in changelog.lower()
+    assert "troubleshooting" in changelog.lower()
+    assert "requirements-dev.txt" in changelog
     assert "artifact" in changelog.lower()
-    assert "pyproject.toml" in changelog
 
 
 def test_license_file_exists_and_is_mit():
@@ -64,3 +72,21 @@ def test_severity_rules_defaults_do_not_claim_v03_limitations():
     assert "No rename inference in `v0.3`" not in severity_rules
     assert "Default threshold: `--fail-on breaking`" in severity_rules
     assert ".semguard.yml" in severity_rules
+
+
+def test_community_docs_exist_and_cover_expected_topics():
+    security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    troubleshooting = (ROOT / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+
+    assert "GitHub Security Advisories" in security
+    assert "rivero4javier@outlook.es" in security
+    assert "Python 3.11 or newer" in contributing
+    assert "requirements-dev.txt" in contributing
+    assert "python -m pytest" in contributing
+    assert "fetch-depth: 0" in troubleshooting
+    assert "YAML" in troubleshooting
+    assert "forked pull requests" in troubleshooting
+    assert "fail-on" in troubleshooting
+    assert "semantic_manifest.json" in troubleshooting
+    assert "No semantic changes detected." in troubleshooting
