@@ -46,3 +46,6 @@ addopts = "-ra"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dbt_semguard"]
+
+[tool.hatch.version]
+path = "src/dbt_semguard/__init__.py"
