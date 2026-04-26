@@ -241,7 +241,7 @@ def test_readme_uses_marketplace_action_ref_and_relative_links():
     assert "(examples/ecommerce_dbt_project)" in readme
 
 
-def test_pyproject_includes_v051_packaging_metadata():
+def test_pyproject_includes_v052_packaging_metadata():
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     project = pyproject["project"]
 
