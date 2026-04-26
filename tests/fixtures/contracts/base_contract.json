@@ -29,7 +29,8 @@
           "name": "ordered_at",
           "type": "time"
         }
-      }
+      },
+      "measures": {}
     }
   },
   "metrics": {
