@@ -27,7 +27,7 @@ def test_readme_covers_github_install_source_install_and_action_permissions():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "## Install From GitHub" in readme
-    assert 'python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.1"' in readme
+    assert 'python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.2"' in readme
     assert "Python 3.11 or newer" in readme
     assert "## Install From Source" in readme
     assert "python -m pip install ." in readme
