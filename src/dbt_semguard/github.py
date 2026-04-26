@@ -9,6 +9,7 @@ from urllib import error, request
 from dbt_semguard.models import Report
 
 PR_COMMENT_MARKER = "<!-- dbt-semguard -->"
+GITHUB_API_TIMEOUT_SECONDS = 30
 
 RequestFn = Callable[[str, str, str, dict[str, Any] | None], Any]
 
@@ -149,7 +150,7 @@ def _request_json(method: str, url: str, token: str, payload: dict[str, Any] | N
         },
     )
     try:
-        with request.urlopen(github_request) as response:
+        with request.urlopen(github_request, timeout=GITHUB_API_TIMEOUT_SECONDS) as response:
             raw = response.read()
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
