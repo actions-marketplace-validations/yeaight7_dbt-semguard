@@ -24,19 +24,19 @@ inputs:
     description: Optional head dbt semantic_manifest.json path
     required: false
   fail-on:
-    description: Minimum severity that should fail the action. Accepted values: `breaking`, `risky`, `safe`.
+    description: 'Minimum severity that should fail the action. Accepted values: `breaking`, `risky`, `safe`.'
     default: "breaking"
   pr-comment:
     description: When true, publish or update a sticky PR comment with the semguard report
     default: "false"
   pr-comment-mode:
-    description: PR comment behavior when a previous dbt-semguard comment exists. Use `sticky` to update the existing dbt-semguard comment or `create` to always post a new comment.
+    description: 'PR comment behavior when a previous dbt-semguard comment exists. Use `sticky` to update the existing dbt-semguard comment or `create` to always post a new comment.'
     default: "sticky"
   github-token:
     description: GitHub token used for PR comment publishing
     required: false
   artifact-name:
-    description: Name for the uploaded JSON artifact. Internal report filenames are derived from this value.
+    description: 'Name for the uploaded JSON artifact. Internal report filenames are derived from this value.'
     default: "semguard-report"
 
 outputs:
