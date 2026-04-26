@@ -269,6 +269,54 @@ exclude:
     assert '"file": "misc/extra.yml"' in result.stdout
 
 
+def test_git_ref_mode_rejects_option_like_refs_before_calling_ls_tree(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run(["git", "init", "-b", "main"], repo)
+    run(["git", "config", "user.email", "test@example.com"], repo)
+    run(["git", "config", "user.name", "Test User"], repo)
+
+    models_dir = repo / "models"
+    models_dir.mkdir()
+    (models_dir / "orders.yml").write_text(
+        """models:
+  - name: fct_orders
+    semantic_model:
+      enabled: true
+      name: orders
+""",
+        encoding="utf-8",
+    )
+    run(["git", "add", "."], repo)
+    run(["git", "commit", "-m", "base"], repo)
+    head_ref = run(["git", "rev-parse", "HEAD"], repo).stdout.strip()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "dbt_semguard.cli",
+            "diff",
+            "--base-ref",
+            "--help",
+            "--head-ref",
+            head_ref,
+            "--project-dir",
+            str(repo),
+            "--format",
+            "json",
+        ],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "Invalid git ref '--help'" in result.stderr
+    assert "ls-tree" not in result.stderr
+
+
 def test_git_ref_mode_uses_semguard_filters_from_each_ref(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()
