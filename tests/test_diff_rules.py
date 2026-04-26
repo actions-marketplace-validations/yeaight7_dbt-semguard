@@ -3,7 +3,14 @@ from pathlib import Path
 
 from dbt_semguard.diffing import FIELD_DIFF_POLICY, SEVERITY_BY_CODE, diff_contracts
 from dbt_semguard.extractors import extract_contract_from_manifest, extract_contract_from_yaml_dir
-from dbt_semguard.models import DimensionContract, EntityContract, MetricContract, SemanticContract, SemanticModelContract
+from dbt_semguard.models import (
+    DimensionContract,
+    EntityContract,
+    MeasureContract,
+    MetricContract,
+    SemanticContract,
+    SemanticModelContract,
+)
 from dbt_semguard.reporting import build_report
 
 
@@ -199,6 +206,36 @@ def test_yaml_and_manifest_equivalent_filter_changes_produce_same_findings(tmp_p
     assert _normalized_changes(yaml_changes) == _normalized_changes(manifest_changes)
 
 
+def test_filter_diff_preserves_case_sensitive_string_literals(tmp_path: Path):
+    changes = _filter_changes(tmp_path, "order_status = 'ACTIVE'", "order_status = 'active'")
+
+    assert ("metric.filter_changed", "risky", "metrics.filtered_orders", "order_status='ACTIVE'", "order_status='active'") in _normalized_changes(
+        changes
+    )
+
+
+def test_filter_diff_preserves_quote_semantics(tmp_path: Path):
+    changes = _filter_changes(tmp_path, "order_status = 'ACTIVE'", 'order_status = "ACTIVE"')
+
+    assert ("metric.filter_changed", "risky", "metrics.filtered_orders", "order_status='ACTIVE'", 'order_status="ACTIVE"') in _normalized_changes(
+        changes
+    )
+
+
+def test_filter_diff_ignores_operator_spacing_outside_quotes(tmp_path: Path):
+    changes = _filter_changes(tmp_path, "order_status='ACTIVE'", "order_status = 'ACTIVE'")
+
+    assert changes == []
+
+
+def test_filter_diff_preserves_spacing_inside_string_literals(tmp_path: Path):
+    changes = _filter_changes(tmp_path, "order_status = 'A  B'", "order_status = 'A B'")
+
+    assert ("metric.filter_changed", "risky", "metrics.filtered_orders", "order_status='A  B'", "order_status='A B'") in _normalized_changes(
+        changes
+    )
+
+
 def test_yaml_and_manifest_equivalent_entity_expression_changes_produce_same_findings(tmp_path: Path):
     base_yaml_dir = tmp_path / "yaml_base"
     head_yaml_dir = tmp_path / "yaml_head"
@@ -256,6 +293,68 @@ def test_field_diff_policy_accounts_for_all_supported_contract_fields():
             elif isinstance(rule, dict):
                 for code in rule.values():
                     assert code in SEVERITY_BY_CODE
+
+
+def test_diff_detects_measure_semantic_changes():
+    base = SemanticContract(
+        semantic_models={
+            "orders": SemanticModelContract(
+                name="orders",
+                model_name="fct_orders",
+                measures={
+                    "gross_revenue": MeasureContract(
+                        name="gross_revenue",
+                        agg="sum",
+                        expr="order_total",
+                        agg_time_dimension="ordered_at",
+                    )
+                },
+            )
+        }
+    )
+    head = SemanticContract(
+        semantic_models={
+            "orders": SemanticModelContract(
+                name="orders",
+                model_name="fct_orders",
+                measures={
+                    "gross_revenue": MeasureContract(
+                        name="gross_revenue",
+                        agg="avg",
+                        expr="net_order_total",
+                        agg_time_dimension="booked_at",
+                    )
+                },
+            )
+        }
+    )
+
+    report = build_report(diff_contracts(base, head))
+    codes = {(change.code, change.severity) for change in report.changes}
+
+    assert ("measure.agg_changed", "breaking") in codes
+    assert ("measure.expr_changed", "breaking") in codes
+    assert ("measure.agg_time_dimension_changed", "risky") in codes
+
+
+def test_diff_classifies_sub_day_granularity_loss_as_breaking():
+    base = _contract_with_granularity("hour")
+    head = _contract_with_granularity("day")
+
+    report = build_report(diff_contracts(base, head))
+
+    change = next(change for change in report.changes if change.code == "dimension.granularity_changed")
+    assert change.severity == "breaking"
+
+
+def test_diff_classifies_sub_day_granularity_gain_as_risky():
+    base = _contract_with_granularity("day")
+    head = _contract_with_granularity("hour")
+
+    report = build_report(diff_contracts(base, head))
+
+    change = next(change for change in report.changes if change.code == "dimension.granularity_changed")
+    assert change.severity == "risky"
 
 
 def test_diff_detects_cumulative_metric_semantic_changes():
@@ -397,6 +496,53 @@ def test_yaml_and_manifest_equivalent_conversion_changes_produce_same_findings(t
 
 def _normalized_changes(changes):
     return sorted((change.code, change.severity, change.path, change.before, change.after) for change in changes)
+
+
+def _filter_changes(tmp_path: Path, base_filter: str, head_filter: str):
+    base_dir = _write_filter_project(tmp_path / "base", base_filter)
+    head_dir = _write_filter_project(tmp_path / "head", head_filter)
+    return diff_contracts(extract_contract_from_yaml_dir(base_dir), extract_contract_from_yaml_dir(head_dir))
+
+
+def _write_filter_project(project_dir: Path, filter_expr: str) -> Path:
+    models_dir = project_dir / "models"
+    models_dir.mkdir(parents=True)
+    (models_dir / "orders.yml").write_text(
+        f"""models:
+  - name: fct_orders
+    semantic_model:
+      enabled: true
+      name: orders
+    metrics:
+      - name: filtered_orders
+        type: simple
+        agg: count
+        expr: 1
+        filter: |
+          {filter_expr}
+""",
+        encoding="utf-8",
+    )
+    return project_dir
+
+
+def _contract_with_granularity(granularity: str) -> SemanticContract:
+    return SemanticContract(
+        semantic_models={
+            "orders": SemanticModelContract(
+                name="orders",
+                model_name="fct_orders",
+                dimensions={
+                    "ordered_at": DimensionContract(
+                        name="ordered_at",
+                        type="time",
+                        expr="ordered_at",
+                        granularity=granularity,
+                    )
+                },
+            )
+        }
+    )
 
 
 def _semantic_expr_project_yaml(*, customer_expr: str, country_expr: str) -> str:
