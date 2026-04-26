@@ -43,6 +43,15 @@ At a high level:
 
 It keeps the pieces that affect meaning and ignores cosmetic metadata.
 
+## What v0.5.2 Adds
+
+`v0.5.2` is a massive architectural refactor focusing on performance, precision, and deeper platform integration:
+
+- **Performance:** Pydantic was removed in favor of standard `dataclasses`, significantly reducing package size and CLI cold-start times.
+- **Precision:** MetricFlow `measures` are now natively extracted and diffed, preventing false negatives for aggregation/expression changes. Diffing is now direction-sensitive (e.g. changing granularity). SQL filters are normalized.
+- **Usability:** Added `fail-on: none` advisory mode and inline GitHub PR code annotations via the Check Runs API.
+- **Distribution:** Added an automated PyPI publishing workflow.
+
 ## What v0.5.1 Adds
 
 `v0.5.1` focuses on safer CI execution, clearer action behavior, and contributor hygiene:
