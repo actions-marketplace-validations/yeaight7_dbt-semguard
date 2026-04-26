@@ -48,7 +48,7 @@ These warn by default and become blocking only if `--fail-on risky` or `--fail-o
 - `measure.added`
 - `measure.agg_time_dimension_changed`
 - `metric.added`
-- `metric.filter_changed`
+- `metric.filter_changed` for semantic SQL filter edits, including case-sensitive literal changes and quote changes
 - `metric.label_changed`
 - `metric.agg_time_dimension_changed`
 - `metric.cumulative.window_changed`
@@ -63,6 +63,7 @@ Safe changes do not appear in the semantic diff.
 - Docs text changes
 - YAML reordering
 - Whitespace or comment changes
+- Insignificant SQL filter spacing around comparison operators
 
 ## Defaults
 
