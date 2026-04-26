@@ -10,6 +10,14 @@ from dbt_semguard import cli as cli_module
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_pyproject() -> dict:
+    return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def current_version() -> str:
+    return __version__
+
+
 def load_workflow(name: str) -> dict:
     return yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
 
