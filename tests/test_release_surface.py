@@ -46,9 +46,19 @@ def test_action_invokes_semguard_without_eval_or_serialized_shell_args():
 
     assert "eval " not in action_text
     assert "diff_args=" not in action_text
+    assert "PR_ARGS" not in action_text
+    assert "pr_args=()" in action_text
+    assert '"${pr_args[@]}"' in action_text
     assert "python -m dbt_semguard.action_runner" in action_text
     assert "semguard comment-pr" in action_text
     assert "--github-token" not in action_text
+
+
+def test_action_validates_runtime_python_version_before_installing():
+    action_text = (ROOT / "action.yml").read_text(encoding="utf-8")
+
+    assert "Python 3.11 or newer is required" in action_text
+    assert "sys.version_info < (3, 11)" in action_text
 
 
 def test_action_defines_structured_outputs_for_ci_consumers():
@@ -130,6 +140,16 @@ def test_ci_workflow_uses_only_local_action_smoke_jobs():
     assert any("head-ref" in str(step.get("with", {})) for step in git_steps)
     assert any("base-manifest" in str(step.get("with", {})) for step in manifest_steps)
     assert any("head-manifest" in str(step.get("with", {})) for step in manifest_steps)
+
+
+def test_pr_comment_workflow_tests_current_local_action():
+    workflow_text = (ROOT / ".github" / "workflows" / "semguard-pr-comment-test.yml").read_text(encoding="utf-8")
+    workflow = load_workflow("semguard-pr-comment-test.yml")
+    semguard_step = next(step for step in workflow["jobs"]["semguard"]["steps"] if step.get("id") == "semguard")
+
+    assert semguard_step["uses"] == "./"
+    assert "Run local dbt-semguard action" == semguard_step["name"]
+    assert "yeaight7/dbt-semguard@" not in workflow_text
 
 
 def test_ci_workflow_installs_pinned_dev_requirements():
