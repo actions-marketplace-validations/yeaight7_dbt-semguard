@@ -24,19 +24,19 @@ inputs:
     description: Optional head dbt semantic_manifest.json path
     required: false
   fail-on:
-    description: Minimum severity that should fail the action
+    description: Minimum severity that should fail the action. Accepted values: `breaking`, `risky`, `safe`.
     default: "breaking"
   pr-comment:
     description: When true, publish or update a sticky PR comment with the semguard report
     default: "false"
   pr-comment-mode:
-    description: PR comment behavior when a previous dbt-semguard comment exists
+    description: PR comment behavior when a previous dbt-semguard comment exists. Use `sticky` to update the existing dbt-semguard comment or `create` to always post a new comment.
     default: "sticky"
   github-token:
     description: GitHub token used for PR comment publishing
     required: false
   artifact-name:
-    description: Name for the uploaded JSON artifact
+    description: Name for the uploaded JSON artifact. Internal report filenames are derived from this value.
     default: "semguard-report"
 
 outputs:
@@ -74,6 +74,28 @@ runs:
         "$VENV_DIR/bin/python" -m pip install "$ACTION_PATH"
         echo "$VENV_DIR/bin" >> "$GITHUB_PATH"
 
+    - name: Resolve report paths
+      shell: bash
+      env:
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      run: |
+        REPORT_DIR="$(mktemp -d "$RUNNER_TEMP/dbt-semguard.XXXXXX")"
+        REPORT_BASENAME="$(python - <<'PY'
+        import os
+        import re
+
+        artifact_name = os.environ.get("ARTIFACT_NAME", "").strip() or "semguard-report"
+        sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", artifact_name).strip(".-_")
+        print(sanitized or "semguard-report")
+        PY
+        )"
+        {
+          echo "REPORT_DIR=$REPORT_DIR"
+          echo "REPORT_BASENAME=$REPORT_BASENAME"
+          echo "REPORT_JSON_PATH=$REPORT_DIR/$REPORT_BASENAME.json"
+          echo "REPORT_MD_PATH=$REPORT_DIR/$REPORT_BASENAME.md"
+        } >> "$GITHUB_ENV"
+
     - name: Generate dbt-semguard report
       id: generate
       shell: bash
@@ -84,6 +106,8 @@ runs:
         BASE_MANIFEST: ${{ inputs.base-manifest }}
         HEAD_MANIFEST: ${{ inputs.head-manifest }}
         FAIL_ON: ${{ inputs.fail-on }}
+        REPORT_DIR: ${{ env.REPORT_DIR }}
+        REPORT_BASENAME: ${{ env.REPORT_BASENAME }}
       run: |
         python -m dbt_semguard.action_runner
 
@@ -105,7 +129,7 @@ runs:
           exit 0
         fi
         semguard comment-pr \
-          --body-file semguard-report.md \
+          --body-file "$REPORT_MD_PATH" \
           --repo "$REPOSITORY" \
           --pr-number "$PR_NUMBER" \
           --mode "$PR_COMMENT_MODE"
@@ -125,5 +149,5 @@ runs:
       if: always()
       with:
         name: ${{ inputs.artifact-name }}
-        path: semguard-report.json
+        path: ${{ env.REPORT_JSON_PATH }}
         if-no-files-found: warn
