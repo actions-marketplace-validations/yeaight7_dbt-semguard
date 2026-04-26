@@ -87,7 +87,7 @@ python -m pip install dbt-semguard
 ## Install From GitHub
 
 ```bash
-python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.3"
+python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.4"
 ```
 
 Use the GitHub install path when you need to pin directly to a repository tag.
@@ -265,7 +265,7 @@ Current automated coverage:
 
 ## Current Limitations
 
-Known `v0.5.3` limitations are intentionally narrow:
+Known `v0.5.4` limitations are intentionally narrow:
 
 - There is no allowlist for intentional semantic changes yet.
 - Manifest parsing expects dbt `semantic_manifest.json`, not the general-purpose dbt `manifest.json` artifact.
@@ -285,14 +285,14 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: write
+      pull-requests: read
       checks: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: yeaight7/dbt-semguard@v0.5.3
+      - uses: yeaight7/dbt-semguard@v0.5.4
         id: semguard
         with:
           base-ref: ${{ github.event.pull_request.base.sha }}
@@ -340,7 +340,7 @@ If you enable `pr-comment: true`, the workflow needs:
 
 - `contents: read`
 - `issues: write`
-- `pull-requests: write`
+- `pull-requests: read`
 - `checks: write`
 
 Missing `checks: write` can prevent inline annotations and check runs from appearing even when the semantic diff succeeds.
@@ -351,8 +351,13 @@ For forked pull requests, the standard `pull_request` event usually does not get
 
 Common CI and configuration issues are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
 
-## Migration notes (`v0.5.3`)
+## Migration notes (`v0.5.4`)
 
+- Severity handling now uses an internal enum while preserving the same JSON strings (`breaking`, `risky`, `safe`).
+- SQL filter diffs preserve case and quote semantics while still ignoring insignificant operator spacing.
+- GitHub workflow examples now scope write access to PR comments and check annotations only.
+- Extractor internals are split into YAML, manifest, and normalization modules behind the same public facade.
+- Native measure diffing, sub-day granularity severity, 30-second GitHub API timeouts, and git ref validation are included in the release surface.
 - Git ref extraction now scopes strictly to `--project-dir` for monorepos.
 - YAML discovery now uses safe default include/exclude patterns.
 - Optional `.semguard.yml` include/exclude rules are applied in both local and git-ref YAML extraction.
