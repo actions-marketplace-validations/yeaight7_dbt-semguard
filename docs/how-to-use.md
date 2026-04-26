@@ -43,14 +43,14 @@ At a high level:
 
 It keeps the pieces that affect meaning and ignores cosmetic metadata.
 
-## What v0.5.0 Adds
+## What v0.5.1 Adds
 
-`v0.5.0` focuses on safer CI execution and better action ergonomics:
+`v0.5.1` focuses on safer CI execution, clearer action behavior, and contributor hygiene:
 
 - env-only composite action shell wiring for user-controlled inputs
+- collision-safe report paths derived from the uploaded artifact name
 - single-pass action report generation with structured outputs
-- artifact upload behavior that stays informative even after earlier failures
-- packaging metadata improvements for open-source distribution credibility
+- contributor, security, and troubleshooting docs for the public action surface
 
 ## When To Use Which Command
 
