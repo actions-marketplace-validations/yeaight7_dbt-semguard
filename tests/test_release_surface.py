@@ -142,6 +142,13 @@ def test_ci_workflow_uses_only_local_action_smoke_jobs():
     assert any("head-manifest" in str(step.get("with", {})) for step in manifest_steps)
 
 
+def test_ci_workflow_uses_read_only_permissions():
+    workflow = load_workflow("ci.yml")
+
+    assert workflow["permissions"] == {"contents": "read"}
+    _assert_no_write_permissions(workflow)
+
+
 def test_pr_comment_workflow_tests_current_local_action():
     workflow_text = (ROOT / ".github" / "workflows" / "semguard-pr-comment-test.yml").read_text(encoding="utf-8")
     workflow = load_workflow("semguard-pr-comment-test.yml")
@@ -150,6 +157,18 @@ def test_pr_comment_workflow_tests_current_local_action():
     assert semguard_step["uses"] == "./"
     assert "Run local dbt-semguard action" == semguard_step["name"]
     assert "yeaight7/dbt-semguard@" not in workflow_text
+
+
+def test_pr_comment_workflow_scopes_write_permissions_to_commenting_needs():
+    workflow = load_workflow("semguard-pr-comment-test.yml")
+    permissions = workflow["jobs"]["semguard"]["permissions"]
+
+    assert permissions == {
+        "contents": "read",
+        "issues": "write",
+        "pull-requests": "read",
+        "checks": "write",
+    }
 
 
 def test_ci_workflow_installs_pinned_dev_requirements():
@@ -231,6 +250,12 @@ def test_published_action_smoke_workflow_runs_only_after_release_or_manual_dispa
     assert 'metric_aggregation_params' in fixture_run
     assert '"agg"' in fixture_run
     assert '"avg"' in fixture_run
+
+
+def test_published_action_smoke_workflow_uses_read_only_permissions():
+    workflow = load_workflow("published-action-smoke.yml")
+
+    _assert_no_write_permissions(workflow)
 
 
 def test_published_action_smoke_workflow_asserts_outputs_not_workspace_report_files():
@@ -353,3 +378,11 @@ def test_publish_workflow_runs_tests_before_build():
     build_index = workflow_text.index("hatch build")
 
     assert pytest_index < build_index
+
+
+def _assert_no_write_permissions(workflow: dict) -> None:
+    for scope, access in workflow.get("permissions", {}).items():
+        assert access != "write", f"global {scope} permission is write"
+    for job_name, job in workflow["jobs"].items():
+        for scope, access in job.get("permissions", {}).items():
+            assert access != "write", f"{job_name} {scope} permission is write"
