@@ -63,6 +63,16 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Validate Python version
+      shell: bash
+      run: |
+        python - <<'PY'
+        import sys
+
+        if sys.version_info < (3, 11):
+            raise SystemExit("Python 3.11 or newer is required to run dbt-semguard.")
+        PY
+
     - name: Install dbt-semguard
       shell: bash
       env:
@@ -126,13 +136,13 @@ runs:
           exit 0
         fi
         
-        PR_ARGS=""
+        pr_args=()
         if [[ -n "$PR_NUMBER" ]]; then
-          PR_ARGS="--pr-number $PR_NUMBER --body-file $REPORT_MD_PATH"
+          pr_args+=(--pr-number "$PR_NUMBER" --body-file "$REPORT_MD_PATH")
         fi
         
         semguard comment-pr \
-          $PR_ARGS \
+          "${pr_args[@]}" \
           --repo "$REPOSITORY" \
           --head-sha "$HEAD_SHA" \
           --report-json "$REPORT_JSON_PATH" \
