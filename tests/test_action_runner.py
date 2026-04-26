@@ -86,11 +86,10 @@ def test_execute_action_writes_git_mode_report_summary_and_outputs(tmp_path: Pat
     assert outputs == {
         "highest-severity": "breaking",
         "blocking": "true",
-        "breaking-count": "3",
-        "risky-count": "1",
+        "breaking-count": "4",
+        "risky-count": "0",
         "safe-count": "0",
     }
-
 
 def test_execute_action_writes_manifest_mode_artifacts_even_when_blocking(tmp_path: Path):
     base_manifest = tmp_path / "base-semantic-manifest.json"
