@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-  { name = "yeaight7" }
+  { name = "yeaight7", email = "rivero4javier@outlook.es" }
 ]
 keywords = ["dbt", "semantic-layer", "metrics", "github-actions", "data-quality"]
 classifiers = [
