@@ -122,6 +122,11 @@ def _build_contract_from_compact_manifest_payload(payload: dict[str, Any]) -> Se
                 )
                 for dimension in node.get("dimensions", [])
             },
+            measures={
+                measure["name"]: _build_manifest_measure_contract(measure)
+                for measure in node.get("measures", []) or []
+                if isinstance(measure, dict) and "name" in measure
+            },
         )
 
     for node in _mapping_values(payload.get("metrics", {})):
@@ -143,6 +148,11 @@ def _build_contract_from_semantic_manifest_payload(payload: dict[str, Any]) -> S
     for node in _mapping_values(payload.get("semantic_models", {})):
         name = node["name"]
         default_agg_time_dimension = _nested_mapping_get(node, "defaults", "agg_time_dimension")
+        measure_payloads = {
+            measure["name"]: measure
+            for measure in node.get("measures", []) or []
+            if isinstance(measure, dict) and "name" in measure
+        }
         semantic_models[name] = SemanticModelContract(
             name=name,
             model_name=_semantic_model_backing_model_name(node),
@@ -165,13 +175,13 @@ def _build_contract_from_semantic_manifest_payload(payload: dict[str, Any]) -> S
                 )
                 for dimension in node.get("dimensions", [])
             },
+            measures={
+                measure_name: _build_manifest_measure_contract(measure_payload)
+                for measure_name, measure_payload in measure_payloads.items()
+            },
         )
         model_default_agg_time_dimensions[name] = default_agg_time_dimension
-        measures_by_model[name] = {
-            measure["name"]: measure
-            for measure in node.get("measures", []) or []
-            if isinstance(measure, dict) and "name" in measure
-        }
+        measures_by_model[name] = measure_payloads
 
     for node in _mapping_values(payload.get("metrics", {})):
         metric = _build_metric_contract_from_semantic_manifest(
@@ -182,6 +192,17 @@ def _build_contract_from_semantic_manifest_payload(payload: dict[str, Any]) -> S
         metrics[metric.name] = metric
 
     return SemanticContract(semantic_models=semantic_models, metrics=metrics)
+
+
+def _build_manifest_measure_contract(payload: dict[str, Any]) -> MeasureContract:
+    name = payload["name"]
+    return MeasureContract(
+        name=name,
+        agg=payload.get("agg"),
+        expr=str(payload.get("expr") or name),
+        agg_time_dimension=payload.get("agg_time_dimension"),
+        non_additive_dimension=payload.get("non_additive_dimension"),
+    )
 
 
 def _build_contract_from_yaml_documents(documents: Iterable[tuple[str, str]]) -> SemanticContract:
