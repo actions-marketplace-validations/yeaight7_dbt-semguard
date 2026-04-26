@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any, Callable
 from urllib import error, request
 
@@ -77,8 +78,14 @@ def create_check_run_annotations(
                 token,
                 payload,
             )
-        except GitHubPermissionError:
-            pass
+        except GitHubPermissionError as exc:
+            print(
+                "dbt-semguard: skipping check run annotations because the GitHub API denied "
+                f"permission ({exc.status_code}). Ensure the workflow grants checks: write; "
+                "fork pull requests may still receive a read-only token.",
+                file=sys.stderr,
+            )
+            return
 
 
 def upsert_pr_comment(
