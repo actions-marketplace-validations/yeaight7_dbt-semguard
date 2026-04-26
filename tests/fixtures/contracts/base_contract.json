@@ -30,7 +30,22 @@
           "type": "time"
         }
       },
-      "measures": {}
+      "measures": {
+        "gross_revenue": {
+          "name": "gross_revenue",
+          "agg": "sum",
+          "expr": "order_total",
+          "agg_time_dimension": "ordered_at",
+          "non_additive_dimension": null
+        },
+        "order_count": {
+          "name": "order_count",
+          "agg": "count",
+          "expr": "1",
+          "agg_time_dimension": "ordered_at",
+          "non_additive_dimension": null
+        }
+      }
     }
   },
   "metrics": {
