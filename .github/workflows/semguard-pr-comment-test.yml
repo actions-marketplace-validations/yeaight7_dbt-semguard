@@ -1,0 +1,68 @@
+name: Semguard PR comment test
+
+on:
+  pull_request:
+    paths:
+      - "tests/fixtures/projects/base/models/orders.yml"
+      - ".github/workflows/semguard-pr-comment-test.yml"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  checks: write
+
+jobs:
+  semguard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run published dbt-semguard action
+        id: semguard
+        uses: yeaight7/dbt-semguard@v0.5.3
+        continue-on-error: true
+        with:
+          base-ref: ${{ github.event.pull_request.base.sha }}
+          head-ref: ${{ github.event.pull_request.head.sha }}
+          project-dir: tests/fixtures/projects/base
+          fail-on: breaking
+          pr-comment: true
+          pr-comment-mode: sticky
+          github-token: ${{ github.token }}
+
+      - name: Assert semguard detected the seeded breaking change
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Outcome: ${{ steps.semguard.outcome }}"
+          echo "Highest severity: ${{ steps.semguard.outputs.highest-severity }}"
+          echo "Blocking: ${{ steps.semguard.outputs.blocking }}"
+          echo "Breaking count: ${{ steps.semguard.outputs.breaking-count }}"
+          echo "Risky count: ${{ steps.semguard.outputs.risky-count }}"
+          echo "Safe count: ${{ steps.semguard.outputs.safe-count }}"
+
+          if [[ "${{ steps.semguard.outcome }}" != "failure" ]]; then
+            echo "Expected dbt-semguard to fail because the PR introduces a breaking semantic change."
+            exit 1
+          fi
+
+          if [[ "${{ steps.semguard.outputs.highest-severity }}" != "breaking" ]]; then
+            echo "Expected highest-severity=breaking."
+            exit 1
+          fi
+
+          if [[ "${{ steps.semguard.outputs.blocking }}" != "true" ]]; then
+            echo "Expected blocking=true."
+            exit 1
+          fi
+
+          if [[ "${{ steps.semguard.outputs.breaking-count }}" == "0" ]]; then
+            echo "Expected at least one breaking change."
+            exit 1
+          fi
