@@ -78,7 +78,7 @@ That means the output is focused on semantic drift, not formatting drift.
 ## Install From GitHub
 
 ```bash
-python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.0"
+python -m pip install "git+https://github.com/yeaight7/dbt-semguard.git@v0.5.1"
 ```
 
 `dbt-semguard` requires Python 3.11 or newer.
@@ -191,6 +191,32 @@ JSON reports contain:
 - `changes`
 - `metadata`
 
+### Example Markdown report
+
+```md
+## dbt-semguard report
+
+### Breaking changes
+#### Metric `gross_revenue`
+- Metric `gross_revenue` changed aggregation from `sum` to `avg`.
+
+Status: blocking
+```
+
+### Example JSON report
+
+```json
+{
+  "summary": {
+    "breaking": 3,
+    "risky": 1,
+    "safe": 0
+  },
+  "highest_severity": "breaking",
+  "blocking": true
+}
+```
+
 ## Coverage
 
 `dbt-semguard` currently covers the highest-value semantic changes in the latest dbt Semantic Layer spec.
@@ -229,7 +255,7 @@ Current automated coverage:
 
 ## Current Limitations
 
-Known `v0.5.0` limitations are intentionally narrow:
+Known `v0.5.1` limitations are intentionally narrow:
 
 - There is no `fail-on: none` advisory-only mode yet.
 - There is no allowlist for intentional semantic changes yet.
@@ -257,13 +283,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: yeaight7/dbt-semguard@v0.5.0
+      - uses: yeaight7/dbt-semguard@v0.5.1
         id: semguard
         with:
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.sha }}
           fail-on: breaking
           pr-comment: true
+          pr-comment-mode: sticky
           github-token: ${{ github.token }}
 
       - name: Inspect semguard outputs
@@ -280,6 +307,11 @@ The action now exposes structured outputs so downstream CI can branch on semanti
 - `steps.semguard.outputs.risky-count`
 - `steps.semguard.outputs.safe-count`
 
+`pr-comment-mode` accepts:
+
+- `sticky`: update the previous dbt-semguard PR comment when one already exists
+- `create`: always publish a new PR comment instead of updating the previous one
+
 The action writes:
 
 - a Markdown summary to the workflow summary
@@ -287,6 +319,8 @@ The action writes:
 - structured step outputs for severity and counts
 - an optional sticky PR comment when `pr-comment: true`
 - a failing status when the configured threshold is reached
+
+When there are zero semantic changes, the Markdown artifact and workflow summary explicitly include `No semantic changes detected.` followed by `Status: passing`.
 
 This is the recommended setup when you want the semantic review to happen automatically on every PR.
 
@@ -298,7 +332,11 @@ If you enable `pr-comment: true`, the workflow needs:
 
 For forked pull requests, the standard `pull_request` event usually does not get a write-capable `GITHUB_TOKEN`, so sticky PR comments may be unavailable unless you adopt a separate trusted workflow pattern.
 
-## Migration notes (`v0.5.0`)
+## Troubleshooting
+
+Common CI and configuration issues are covered in [docs/troubleshooting.md](docs/troubleshooting.md).
+
+## Migration notes (`v0.5.1`)
 
 - Git ref extraction now scopes strictly to `--project-dir` for monorepos.
 - YAML discovery now uses safe default include/exclude patterns.
@@ -306,6 +344,8 @@ For forked pull requests, the standard `pull_request` event usually does not get
 - Invalid semantic YAML now raises user-facing errors with source context instead of raw `KeyError` tracebacks.
 - Composite action shell steps now read user-controlled values from environment variables instead of embedding GitHub expressions directly in Bash.
 - Composite action now generates JSON, Markdown, summary text, and step outputs in a single pass before enforcing the blocking threshold.
+- Composite action report files now live in an isolated runner temp directory derived from `artifact-name`, which avoids workspace filename collisions in matrix-style CI jobs.
+- The repository now documents security reporting, contribution setup, and common action troubleshooting paths.
 
 ## Example project
 
@@ -316,8 +356,11 @@ An example latest-spec dbt project lives in [examples/ecommerce_dbt_project](exa
 - [Contract spec](docs/contract-spec.md)
 - [How to use and explain dbt-semguard](docs/how-to-use.md)
 - [Severity rules](docs/severity-rules.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Roadmap](docs/roadmap.md)
 - [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ## License
 
