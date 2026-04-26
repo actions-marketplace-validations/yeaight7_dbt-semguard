@@ -280,6 +280,7 @@ def test_field_diff_policy_accounts_for_all_supported_contract_fields():
         "SemanticModelContract": SemanticModelContract,
         "EntityContract": EntityContract,
         "DimensionContract": DimensionContract,
+        "MeasureContract": MeasureContract,
         "MetricContract": MetricContract,
     }
 
