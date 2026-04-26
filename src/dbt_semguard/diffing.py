@@ -27,6 +27,12 @@ SEVERITY_BY_CODE = {
     "dimension.type_changed": "breaking",
     "dimension.expr_changed": "breaking",
     "dimension.granularity_changed": "risky",
+    "measure.added": "risky",
+    "measure.removed": "breaking",
+    "measure.agg_changed": "breaking",
+    "measure.expr_changed": "breaking",
+    "measure.agg_time_dimension_changed": "risky",
+    "measure.non_additive_dimension_changed": "breaking",
     "metric.added": "risky",
     "metric.removed": "breaking",
     "metric.type_changed": "breaking",
@@ -66,6 +72,13 @@ DIMENSION_COMPARATORS = (
     FieldComparator("type", "dimension.type_changed"),
     FieldComparator("expr", "dimension.expr_changed"),
     FieldComparator("granularity", "dimension.granularity_changed"),
+)
+
+MEASURE_COMPARATORS = (
+    FieldComparator("agg", "measure.agg_changed"),
+    FieldComparator("expr", "measure.expr_changed"),
+    FieldComparator("agg_time_dimension", "measure.agg_time_dimension_changed"),
+    FieldComparator("non_additive_dimension", "measure.non_additive_dimension_changed"),
 )
 
 METRIC_COMMON_COMPARATORS = (
@@ -129,6 +142,14 @@ FIELD_DIFF_POLICY = {
         "type": "dimension.type_changed",
         "expr": "dimension.expr_changed",
         "granularity": "dimension.granularity_changed",
+        "source": False,
+    },
+    "MeasureContract": {
+        "name": False,
+        "agg": "measure.agg_changed",
+        "expr": "measure.expr_changed",
+        "agg_time_dimension": "measure.agg_time_dimension_changed",
+        "non_additive_dimension": "measure.non_additive_dimension_changed",
         "source": False,
     },
     "MetricContract": {
@@ -196,6 +217,15 @@ def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[Chang
             comparators=DIMENSION_COMPARATORS,
             changes=changes,
         )
+        _diff_nested_contracts(
+            path=f"{path}.measures",
+            base_items=base_model.measures,
+            head_items=head_model.measures,
+            added_code="measure.added",
+            removed_code="measure.removed",
+            comparators=MEASURE_COMPARATORS,
+            changes=changes,
+        )
 
     for metric_name in sorted(set(base.metrics) | set(head.metrics)):
         base_metric = base.metrics.get(metric_name)
@@ -261,11 +291,14 @@ def _diff_fields(path: str, base_obj: Any, head_obj: Any, comparators: tuple[Fie
 
 
 GRAIN_ORDER = {
-    "day": 1,
-    "week": 2,
-    "month": 3,
-    "quarter": 4,
-    "year": 5,
+    "second": 1,
+    "minute": 2,
+    "hour": 3,
+    "day": 4,
+    "week": 5,
+    "month": 6,
+    "quarter": 7,
+    "year": 8,
 }
 
 
@@ -295,7 +328,7 @@ def _change(code: str, path: str, before: object, after: object, source=None) ->
     severity = SEVERITY_BY_CODE[code]
     if code == "dimension.granularity_changed":
         severity = _severity_for_granularity_change(before, after)
-    elif code == "metric.simple.non_additive_dimension_changed":
+    elif code in {"measure.non_additive_dimension_changed", "metric.simple.non_additive_dimension_changed"}:
         severity = _severity_for_non_additive_change(before, after)
         
     return ChangeRecord(
@@ -321,6 +354,8 @@ def describe_path_title(path: str) -> str:
         return f"Entity `{parts[3]}` in semantic model `{parts[1]}`"
     if parts[0] == "semantic_models" and len(parts) >= 4 and parts[2] == "dimensions":
         return f"Dimension `{parts[3]}` in semantic model `{parts[1]}`"
+    if parts[0] == "semantic_models" and len(parts) >= 4 and parts[2] == "measures":
+        return f"Measure `{parts[3]}` in semantic model `{parts[1]}`"
     return f"`{parts[-1]}`"
 
 
@@ -342,6 +377,16 @@ def _describe_change(code: str, path: str, before: object, after: object) -> str
         "dimension.type_changed": f"{subject} changed type from `{before}` to `{after}`.",
         "dimension.expr_changed": f"{subject} changed expression from `{before}` to `{after}`.",
         "dimension.granularity_changed": f"{subject} changed granularity from `{before}` to `{after}`.",
+        "measure.added": f"{subject} was added.",
+        "measure.removed": f"{subject} was removed.",
+        "measure.agg_changed": f"{subject} changed aggregation from `{before}` to `{after}`.",
+        "measure.expr_changed": f"{subject} changed expression from `{before}` to `{after}`.",
+        "measure.agg_time_dimension_changed": (
+            f"{subject} changed aggregation time dimension from `{before}` to `{after}`."
+        ),
+        "measure.non_additive_dimension_changed": (
+            f"{subject} changed non-additive dimension from `{before}` to `{after}`."
+        ),
         "metric.added": f"{subject} was added.",
         "metric.removed": f"{subject} was removed.",
         "metric.type_changed": f"{subject} changed type from `{before}` to `{after}`.",
