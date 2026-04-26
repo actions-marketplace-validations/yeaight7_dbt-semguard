@@ -51,6 +51,7 @@ It keeps fields that affect meaning, such as:
 - backing model name
 - entities and entity types
 - dimensions and time granularity
+- measures and measure expressions
 - metric type
 - aggregation and expression
 - filters
@@ -242,12 +243,13 @@ Covered semantic comparisons:
 - Semantic model default aggregation time dimension changes
 - Entity add/remove, type changes, and expression changes
 - Dimension add/remove, type changes, expression changes, and time granularity changes
+- Measure add/remove, aggregation, expression, aggregation-time, and non-additive changes
 - Simple metric aggregation, expression, label, filter, ownership, aggregation-time, and non-additive changes
 - Ratio metric numerator and denominator changes
 - Derived metric expression and input metric changes
 - Cumulative metric input, window, grain-to-date, and period-aggregation changes
 - Conversion metric entity, calculation, base metric, conversion metric, and constant-property changes
-- Additive changes such as new entities, new dimensions, and new metrics
+- Additive changes such as new entities, new dimensions, new measures, and new metrics
 
 Current automated coverage:
 
@@ -327,6 +329,8 @@ The action writes:
 - an optional sticky PR comment when `pr-comment: true`
 - inline check-run annotations when source diagnostics are available
 - a failing status when the configured threshold is reached
+
+The action requires Python 3.11 or newer. GitHub API calls for PR comments and annotations use a 30-second timeout so stalled API responses do not hold CI indefinitely.
 
 When there are zero semantic changes, the Markdown artifact and workflow summary explicitly include `No semantic changes detected.` followed by `Status: passing`.
 
