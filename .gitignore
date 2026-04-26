@@ -7,3 +7,4 @@ build/
 semguard-report.json
 graphify-out/
 pytestv*/
+.gemini/
