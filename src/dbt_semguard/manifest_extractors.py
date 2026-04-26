@@ -11,8 +11,11 @@ from dbt_semguard.models import (
     MetricContract,
     SemanticContract,
     SemanticModelContract,
+    SourceLocation,
 )
 from dbt_semguard.normalization import (
+    _SOURCE_END_LINE_KEY,
+    _SOURCE_LINE_KEY,
     _mapping_values,
     _nested_mapping_get,
     _normalize_filter_value,
@@ -254,7 +257,7 @@ def _build_metric_contract_from_semantic_manifest(
         else None,
         non_additive_dimension=non_additive_dimension,
         owner_model=owner_model,
-        source=None,
+        source=_source_for(payload, source_file),
     )
 
 def _looks_like_plain_dbt_manifest(payload: dict[str, Any]) -> bool:
@@ -279,3 +282,17 @@ def _semantic_model_backing_model_name(node: dict[str, Any]) -> str:
             if value:
                 return str(value)
     return str(node.get("model_name") or node["name"])
+
+
+def _source_for(value: Any, source_file: str | None) -> SourceLocation | None:
+    if source_file is None or not isinstance(value, dict):
+        return None
+    line = value.get(_SOURCE_LINE_KEY)
+    if not isinstance(line, int):
+        return None
+    end_line = value.get(_SOURCE_END_LINE_KEY)
+    return SourceLocation(
+        file=source_file,
+        line=line,
+        end_line=end_line if isinstance(end_line, int) else None,
+    )
