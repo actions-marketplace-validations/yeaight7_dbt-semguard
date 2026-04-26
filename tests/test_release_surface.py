@@ -203,6 +203,26 @@ def test_published_action_smoke_workflow_runs_only_after_release_or_manual_dispa
     assert '"avg"' in fixture_run
 
 
+def test_published_action_smoke_workflow_asserts_outputs_not_workspace_report_files():
+    workflow = load_workflow("published-action-smoke.yml")
+
+    git_assertion = next(
+        step for step in workflow["jobs"]["published-action-smoke"]["steps"] if step.get("name") == "Assert published git smoke failure"
+    )
+    manifest_assertion = next(
+        step
+        for step in workflow["jobs"]["published-action-smoke-manifest"]["steps"]
+        if step.get("name") == "Assert published manifest smoke failure"
+    )
+
+    assert "semguard-report.json" not in git_assertion["run"]
+    assert "steps.semguard.outputs.highest-severity" in git_assertion["run"]
+    assert "steps.semguard.outputs.blocking" in git_assertion["run"]
+    assert "semguard-report.json" not in manifest_assertion["run"]
+    assert "steps.semguard.outputs.highest-severity" in manifest_assertion["run"]
+    assert "steps.semguard.outputs.blocking" in manifest_assertion["run"]
+
+
 def test_action_exposes_pr_comment_input():
     action = yaml.safe_load((ROOT / "action.yml").read_text(encoding="utf-8"))
 
