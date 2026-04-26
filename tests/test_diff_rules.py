@@ -303,7 +303,7 @@ def test_diff_detects_conversion_metric_semantic_changes():
         metrics={
             "signup_conversion": MetricContract(
                 name="signup_conversion",
-                type="conversion",
+                metric_type="conversion",
                 entity="user",
                 calculation="conversion_rate",
                 base_metric="signups",
@@ -316,7 +316,7 @@ def test_diff_detects_conversion_metric_semantic_changes():
         metrics={
             "signup_conversion": MetricContract(
                 name="signup_conversion",
-                type="conversion",
+                metric_type="conversion",
                 entity="account",
                 calculation="conversions",
                 base_metric="registrations",
