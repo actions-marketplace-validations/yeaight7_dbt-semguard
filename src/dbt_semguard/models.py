@@ -224,7 +224,7 @@ class ChangeRecord:
     source: SourceLocation | None = None
     
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        return _strip_null_sources_and_rename(asdict(self))
+        return _strip_null_sources(asdict(self))
 
 
 @dataclass
