@@ -547,7 +547,7 @@ def _advanced_metric_manifest(*, window: str = "30d", base_metric: str = "signup
             },
             {
                 "name": "revenue_mtd",
-                "type": "cumulative",
+                metric_type="cumulative",
                 "type_params": {
                     "measure": {"name": "revenue_daily"},
                     "cumulative_type_params": {"window": window, "grain_to_date": "month", "period_agg": "sum"},
@@ -568,4 +568,6 @@ def _advanced_metric_manifest(*, window: str = "30d", base_metric: str = "signup
             },
         ],
         "project_configuration": {"time_spines": [], "time_spine_table_configurations": []},
+    }
+,
     }
