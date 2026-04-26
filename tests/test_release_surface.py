@@ -313,15 +313,17 @@ def test_pyproject_includes_packaging_metadata_and_dynamic_version():
 
 
 def test_version_references_are_consistent_across_release_surface():
-    pyproject = load_pyproject()
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    version = pyproject["project"]["version"]
+    how_to_use = (ROOT / "docs" / "how-to-use.md").read_text(encoding="utf-8")
+    version = current_version()
 
-    assert __version__ == version
     assert f"## v{version}" in changelog.splitlines()[2]
     assert f"dbt-semguard@v{version}" in readme
     assert f"dbt-semguard.git@v{version}" in readme
+    assert f"Known `v{version}` limitations" in readme
+    assert f"Migration notes (`v{version}`)" in readme
+    assert f"What v{version} Adds" in how_to_use
 
 
 def test_publish_workflow_runs_tests_before_build():
