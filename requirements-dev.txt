@@ -1,0 +1,12 @@
+pydantic==2.13.3
+pydantic-core==2.46.3
+PyYAML==6.0.3
+pytest==8.4.2
+annotated-types==0.7.0
+colorama==0.4.6
+iniconfig==2.3.0
+packaging==25.0
+pluggy==1.6.0
+Pygments==2.20.0
+typing-extensions==4.15.0
+typing-inspection==0.4.2
