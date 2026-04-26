@@ -24,7 +24,7 @@ inputs:
     description: Optional head dbt semantic_manifest.json path
     required: false
   fail-on:
-    description: 'Minimum severity that should fail the action. Accepted values: `breaking`, `risky`, `safe`.'
+    description: 'Minimum severity that should fail the action. Accepted values: `breaking`, `risky`, `safe`, `none`.'
     default: "breaking"
   pr-comment:
     description: When true, publish or update a sticky PR comment with the semguard report
@@ -118,20 +118,24 @@ runs:
         SEMGUARD_GITHUB_TOKEN: ${{ inputs.github-token }}
         REPOSITORY: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         PR_COMMENT_MODE: ${{ inputs.pr-comment-mode }}
       run: |
         if [[ -z "$SEMGUARD_GITHUB_TOKEN" ]]; then
           echo "dbt-semguard: skipping PR comment because github-token was not provided."
           exit 0
         fi
-        if [[ -z "$PR_NUMBER" ]]; then
-          echo "dbt-semguard: skipping PR comment because this run is not attached to a pull request."
-          exit 0
+        
+        PR_ARGS=""
+        if [[ -n "$PR_NUMBER" ]]; then
+          PR_ARGS="--pr-number $PR_NUMBER --body-file $REPORT_MD_PATH"
         fi
+        
         semguard comment-pr \
-          --body-file "$REPORT_MD_PATH" \
+          $PR_ARGS \
           --repo "$REPOSITORY" \
-          --pr-number "$PR_NUMBER" \
+          --head-sha "$HEAD_SHA" \
+          --report-json "$REPORT_JSON_PATH" \
           --mode "$PR_COMMENT_MODE"
 
     - name: Enforce severity threshold
