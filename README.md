@@ -328,7 +328,7 @@ The action writes:
 - inline check-run annotations when source diagnostics are available
 - a failing status when the configured threshold is reached
 
-When there are zero semantic changes, the Markdown artifact and workflow summary explicitly include `No semantic changes detected`. followed by `Status: passing`.
+When there are zero semantic changes, the Markdown artifact and workflow summary explicitly include `No semantic changes detected.` followed by `Status: passing`.
 
 This is the recommended setup when you want the semantic review to happen automatically on every PR.
 
