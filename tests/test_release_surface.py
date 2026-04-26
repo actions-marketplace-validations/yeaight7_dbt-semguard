@@ -193,7 +193,7 @@ def test_pyproject_includes_v050_packaging_metadata():
     project = pyproject["project"]
 
     assert project["version"] == "0.5.0"
-    assert project["authors"] == [{"name": "yeaight7"}]
+    assert project["authors"] == [{"name": "yeaight7", "email": "rivero4javier@outlook.es"}]
     assert "keywords" in project
     assert {"dbt", "semantic-layer", "metrics", "github-actions"}.issubset(set(project["keywords"]))
     assert "classifiers" in project
