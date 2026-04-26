@@ -10,11 +10,11 @@ from dbt_semguard.extractors import (
     extract_contract_from_git_ref,
     extract_contract_from_manifest,
 )
-from dbt_semguard.models import Report, SemanticContract
+from dbt_semguard.models import FAIL_ON_VALUES, Report, SemanticContract
 from dbt_semguard.reporting import build_report, render_report
 
 DEFAULT_OUTPUT_BASENAME = "semguard-report"
-VALID_FAIL_ON = ("breaking", "risky", "safe", "none")
+VALID_FAIL_ON = FAIL_ON_VALUES
 
 
 def execute_action(
