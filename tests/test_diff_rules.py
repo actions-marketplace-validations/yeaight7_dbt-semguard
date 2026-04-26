@@ -143,8 +143,8 @@ def test_diff_detects_entity_and_dimension_expression_changes():
             "orders": SemanticModelContract(
                 name="orders",
                 model_name="fct_orders",
-                entities={"customer": {"name": "customer", "type": "foreign", "expr": "customer_id"}},
-                dimensions={"country": {"name": "country", "type": "categorical", "expr": "country_code"}},
+                entities={"customer": EntityContract(name="customer", type="foreign", expr="customer_id")},
+                dimensions={"country": DimensionContract(name="country", type="categorical", expr="country_code")},
             )
         }
     )
@@ -153,12 +153,11 @@ def test_diff_detects_entity_and_dimension_expression_changes():
             "orders": SemanticModelContract(
                 name="orders",
                 model_name="fct_orders",
-                entities={"customer": {"name": "customer", "type": "foreign", "expr": "customer_uuid"}},
-                dimensions={"country": {"name": "country", "type": "categorical", "expr": "country_name"}},
+                entities={"customer": EntityContract(name="customer", type="foreign", expr="customer_uuid")},
+                dimensions={"country": DimensionContract(name="country", type="categorical", expr="country_name")},
             )
         }
     )
-
     report = build_report(diff_contracts(base, head))
 
     entity_change = next(change for change in report.changes if change.code == "entity.expr_changed")
