@@ -1,7 +1,17 @@
 import json
 from pathlib import Path
 
-from dbt_semguard.diffing import FIELD_DIFF_POLICY, SEVERITY_BY_CODE, diff_contracts
+from dbt_semguard import diffing
+from dbt_semguard.diffing import (
+    DIMENSION_COMPARATORS,
+    ENTITY_COMPARATORS,
+    MEASURE_COMPARATORS,
+    METRIC_COMMON_COMPARATORS,
+    METRIC_TYPE_COMPARATORS,
+    SEMANTIC_MODEL_COMPARATORS,
+    SEVERITY_BY_CODE,
+    diff_contracts,
+)
 from dbt_semguard.extractors import extract_contract_from_manifest, extract_contract_from_yaml_dir
 from dbt_semguard.models import (
     DimensionContract,
@@ -274,26 +284,35 @@ def test_yaml_and_manifest_equivalent_entity_expression_changes_produce_same_fin
     assert _normalized_changes(yaml_changes) == _normalized_changes(manifest_changes)
 
 
-def test_field_diff_policy_accounts_for_all_supported_contract_fields():
-    model_types = {
-        "SemanticContract": SemanticContract,
-        "SemanticModelContract": SemanticModelContract,
-        "EntityContract": EntityContract,
-        "DimensionContract": DimensionContract,
-        "MeasureContract": MeasureContract,
-        "MetricContract": MetricContract,
+def test_dead_field_diff_policy_is_not_production_api():
+    assert not hasattr(diffing, "FIELD_DIFF_POLICY")
+
+
+def test_comparator_coverage_accounts_for_supported_contract_fields():
+    assert _handled_fields(SemanticContract) == {"semantic_models", "metrics"}
+    assert _handled_fields(SemanticModelContract) == {
+        "name",
+        "model_name",
+        "agg_time_dimension",
+        "entities",
+        "dimensions",
+        "measures",
+        "source",
     }
+    assert _handled_fields(EntityContract) == {"name", "type", "expr", "source"}
+    assert _handled_fields(DimensionContract) == {"name", "type", "expr", "granularity", "source"}
+    assert _handled_fields(MeasureContract) == {
+        "name",
+        "agg",
+        "expr",
+        "agg_time_dimension",
+        "non_additive_dimension",
+        "source",
+    }
+    assert _handled_fields(MetricContract) == set(MetricContract.__dataclass_fields__)
 
-    for model_name, model_type in model_types.items():
-        policy = FIELD_DIFF_POLICY[model_name]
-        assert set(policy) == set(model_type.__dataclass_fields__)
-
-        for rule in policy.values():
-            if isinstance(rule, str):
-                assert rule in SEVERITY_BY_CODE
-            elif isinstance(rule, dict):
-                for code in rule.values():
-                    assert code in SEVERITY_BY_CODE
+    for comparator in _all_comparators():
+        assert comparator.code in SEVERITY_BY_CODE
 
 
 def test_diff_detects_measure_semantic_changes():
@@ -497,6 +516,38 @@ def test_yaml_and_manifest_equivalent_conversion_changes_produce_same_findings(t
 
 def _normalized_changes(changes):
     return sorted((change.code, change.severity, change.path, change.before, change.after) for change in changes)
+
+
+def _handled_fields(model_type):
+    comparator_fields = set()
+    if model_type is SemanticModelContract:
+        comparator_fields = {comparator.field_name for comparator in SEMANTIC_MODEL_COMPARATORS}
+        return comparator_fields | {"name", "entities", "dimensions", "measures", "source"}
+    if model_type is EntityContract:
+        comparator_fields = {comparator.field_name for comparator in ENTITY_COMPARATORS}
+        return comparator_fields | {"name", "source"}
+    if model_type is DimensionContract:
+        comparator_fields = {comparator.field_name for comparator in DIMENSION_COMPARATORS}
+        return comparator_fields | {"name", "source"}
+    if model_type is MeasureContract:
+        comparator_fields = {comparator.field_name for comparator in MEASURE_COMPARATORS}
+        return comparator_fields | {"name", "source"}
+    if model_type is MetricContract:
+        comparator_fields = {comparator.field_name for comparator in METRIC_COMMON_COMPARATORS}
+        for comparators in METRIC_TYPE_COMPARATORS.values():
+            comparator_fields.update(comparator.field_name for comparator in comparators)
+        return comparator_fields | {"name", "metric_type", "source"}
+    return set(model_type.__dataclass_fields__)
+
+
+def _all_comparators():
+    yield from SEMANTIC_MODEL_COMPARATORS
+    yield from ENTITY_COMPARATORS
+    yield from DIMENSION_COMPARATORS
+    yield from MEASURE_COMPARATORS
+    yield from METRIC_COMMON_COMPARATORS
+    for comparators in METRIC_TYPE_COMPARATORS.values():
+        yield from comparators
 
 
 def _filter_changes(tmp_path: Path, base_filter: str, head_filter: str):
