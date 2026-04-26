@@ -105,7 +105,7 @@ def test_create_check_run_annotations_warns_and_continues_on_permission_error(ca
 
 
 def test_request_json_raises_permission_error_for_403(monkeypatch: pytest.MonkeyPatch):
-    def fake_urlopen(_request):
+    def fake_urlopen(_request, timeout=None):
         raise error.HTTPError(
             url="https://api.github.com/repos/yeaight7/dbt-semguard/issues/12/comments",
             code=403,
@@ -121,7 +121,7 @@ def test_request_json_raises_permission_error_for_403(monkeypatch: pytest.Monkey
 
 
 def test_request_json_raises_request_error_for_non_permission_http_failures(monkeypatch: pytest.MonkeyPatch):
-    def fake_urlopen(_request):
+    def fake_urlopen(_request, timeout=None):
         raise error.HTTPError(
             url="https://api.github.com/repos/yeaight7/dbt-semguard/issues/12/comments",
             code=500,
@@ -134,3 +134,26 @@ def test_request_json_raises_request_error_for_non_permission_http_failures(monk
 
     with pytest.raises(GitHubRequestError, match="500"):
         github_module._request_json("GET", "https://api.github.com/test", "token", None)
+
+
+def test_request_json_uses_bounded_urlopen_timeout(monkeypatch: pytest.MonkeyPatch):
+    observed: dict[str, int | None] = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def fake_urlopen(_request, timeout):
+        observed["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(github_module.request, "urlopen", fake_urlopen)
+
+    assert github_module._request_json("GET", "https://api.github.com/test", "token", None) == {"ok": True}
+    assert observed["timeout"] == 30
