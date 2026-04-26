@@ -268,7 +268,7 @@ def test_diff_detects_cumulative_metric_semantic_changes():
         metrics={
             "revenue_mtd": MetricContract(
                 name="revenue_mtd",
-                type="cumulative",
+                metric_type="cumulative",
                 input_metric="revenue_daily",
                 window="30d",
                 grain_to_date="month",
@@ -280,7 +280,7 @@ def test_diff_detects_cumulative_metric_semantic_changes():
         metrics={
             "revenue_mtd": MetricContract(
                 name="revenue_mtd",
-                type="cumulative",
+                metric_type="cumulative",
                 input_metric="revenue_weekly",
                 window="60d",
                 grain_to_date="quarter",
@@ -568,6 +568,4 @@ def _advanced_metric_manifest(*, window: str = "30d", base_metric: str = "signup
             },
         ],
         "project_configuration": {"time_spines": [], "time_spine_table_configurations": []},
-    }
-ions": []},
     }
