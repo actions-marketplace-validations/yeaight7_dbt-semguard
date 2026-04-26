@@ -279,8 +279,9 @@ def test_action_comment_pr_arguments_are_accepted_by_cli_parser(tmp_path: Path):
 
 def test_readme_uses_marketplace_action_ref_and_relative_links():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    version = current_version()
 
-    assert "- uses: yeaight7/dbt-semguard@v0.5.3" in readme
+    assert f"- uses: yeaight7/dbt-semguard@v{version}" in readme
     assert "uses: ./" not in readme
     assert "C:/Users/Rivero/" not in readme
     assert "(docs/contract-spec.md)" in readme
