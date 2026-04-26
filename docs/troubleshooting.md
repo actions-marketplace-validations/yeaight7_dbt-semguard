@@ -30,6 +30,24 @@ On forked pull requests, the default `GITHUB_TOKEN` for the `pull_request` event
 
 That means `pr-comment: true` may skip comment publishing even though the semantic diff still runs. The action is expected to continue without failing the whole job for that permission issue.
 
+## Inline annotations or check runs do not appear
+
+Inline annotations are published through the GitHub Check Runs API when source diagnostics are available.
+
+If semantic changes are detected but inline annotations do not appear, check that the workflow grants:
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  checks: write
+```
+
+Missing `checks: write` can prevent check-run annotations from being created even when the semantic diff itself succeeds.
+
+On forked pull requests, the default `GITHUB_TOKEN` for the `pull_request` event is often read-only. In that case, sticky PR comments and check-run annotations may be unavailable unless you adopt a trusted workflow pattern.
+
 ## Invalid `fail-on` values
 
 The GitHub Action accepts only these values for `fail-on`:
