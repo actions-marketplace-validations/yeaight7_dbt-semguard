@@ -69,7 +69,7 @@
       "entity": null,
       "grain_to_date": null,
       "input_metric": null,
-      "filter": "order_status = 'completed'",
+      "filter": "order_status='completed'",
       "input_metrics": [],
       "label": "Gross Revenue",
       "metric_type": "simple",
