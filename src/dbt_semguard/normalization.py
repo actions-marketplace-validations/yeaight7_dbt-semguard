@@ -4,6 +4,10 @@ import json
 import re
 from typing import Any
 
+_SOURCE_LINE_KEY = "__semguard_source_line__"
+_SOURCE_END_LINE_KEY = "__semguard_source_end_line__"
+_SOURCE_KEY_LINES_KEY = "__semguard_source_key_lines__"
+
 def _normalize_metric_ref(value: Any) -> str | None:
     if value is None:
         return None
