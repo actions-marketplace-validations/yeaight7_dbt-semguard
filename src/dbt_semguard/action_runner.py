@@ -14,7 +14,7 @@ from dbt_semguard.models import Report, SemanticContract
 from dbt_semguard.reporting import build_report, render_report
 
 DEFAULT_OUTPUT_BASENAME = "semguard-report"
-VALID_FAIL_ON = ("breaking", "risky", "safe")
+VALID_FAIL_ON = ("breaking", "risky", "safe", "none")
 
 
 def execute_action(
