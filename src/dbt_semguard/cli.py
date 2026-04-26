@@ -48,9 +48,11 @@ def _build_parser() -> argparse.ArgumentParser:
     extract_parser.add_argument("--output", required=True)
 
     comment_parser = subparsers.add_parser("comment-pr")
-    comment_parser.add_argument("--body-file", required=True)
+    comment_parser.add_argument("--body-file")
     comment_parser.add_argument("--repo", required=True)
-    comment_parser.add_argument("--pr-number", type=int, required=True)
+    comment_parser.add_argument("--pr-number", type=int)
+    comment_parser.add_argument("--head-sha")
+    comment_parser.add_argument("--report-json")
     comment_parser.add_argument("--github-token")
     comment_parser.add_argument("--mode", choices=["sticky", "create"], default="sticky")
 
@@ -101,6 +103,7 @@ def _run_compare(args: argparse.Namespace) -> int:
 
 
 def _run_comment_pr(args: argparse.Namespace) -> int:
+    _validate_comment_pr_args(args)
     token = _resolve_github_token(args.github_token)
     try:
         if getattr(args, "pr_number", None) and getattr(args, "body_file", None):
@@ -152,6 +155,24 @@ def _run_comment_pr(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     return 0
+
+
+def _validate_comment_pr_args(args: argparse.Namespace) -> None:
+    has_pr_number = args.pr_number is not None
+    has_body_file = bool(args.body_file)
+    has_head_sha = bool(getattr(args, "head_sha", None))
+    has_report_json = bool(getattr(args, "report_json", None))
+
+    if has_pr_number and not has_body_file:
+        raise ValueError("--pr-number requires --body-file.")
+    if has_body_file and not has_pr_number:
+        raise ValueError("--body-file requires --pr-number.")
+    if has_head_sha and not has_report_json:
+        raise ValueError("--head-sha requires --report-json.")
+    if has_report_json and not has_head_sha:
+        raise ValueError("--report-json requires --head-sha.")
+    if not ((has_pr_number and has_body_file) or (has_head_sha and has_report_json)):
+        raise ValueError("Provide PR comment inputs, annotation inputs, or both.")
 
 
 def _resolve_github_token(explicit_token: str | None) -> str:
