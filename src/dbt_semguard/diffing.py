@@ -115,6 +115,7 @@ FIELD_DIFF_POLICY = {
         "agg_time_dimension": "semantic_model.agg_time_dimension_changed",
         "entities": None,
         "dimensions": None,
+        "measures": None,
         "source": False,
     },
     "EntityContract": {
