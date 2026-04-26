@@ -21,9 +21,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run published dbt-semguard action
+      - name: Run local dbt-semguard action
         id: semguard
-        uses: yeaight7/dbt-semguard@v0.5.3
+        uses: ./
         continue-on-error: true
         with:
           base-ref: ${{ github.event.pull_request.base.sha }}
