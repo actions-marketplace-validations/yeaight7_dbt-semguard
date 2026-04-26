@@ -7,8 +7,7 @@ from dbt_semguard.diffing import describe_path_title
 from dbt_semguard.models import ChangeRecord, Report
 
 
-SEVERITY_ORDER = {"safe": 0, "risky": 1, "breaking": 2}
-
+SEVERITY_ORDER = {"safe": 0, "risky": 1, "breaking": 2, "none": -1}
 
 def build_report(
     changes: list[ChangeRecord],
@@ -22,9 +21,12 @@ def build_report(
 
     highest = "safe"
     if changes:
-        highest = max(changes, key=lambda item: SEVERITY_ORDER[item.severity]).severity
+        highest = max(changes, key=lambda item: SEVERITY_ORDER.get(item.severity, 0)).severity
 
-    blocking = SEVERITY_ORDER[highest] >= SEVERITY_ORDER[fail_on] and bool(changes)
+    blocking = False
+    if fail_on != "none" and changes:
+        blocking = SEVERITY_ORDER.get(highest, 0) >= SEVERITY_ORDER.get(fail_on, 2)
+        
     return Report(
         summary=summary,
         highest_severity=highest,
