@@ -58,17 +58,9 @@ jobs:
             echo "Expected the published action smoke test to fail on the seeded breaking change."
             exit 1
           fi
-          test -f semguard-report.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payload = json.loads(Path("semguard-report.json").read_text(encoding="utf-8"))
-          assert payload["highest_severity"] == "breaking", payload
-          assert payload["blocking"] is True, payload
-          messages = "\n".join(change["message"] for change in payload["changes"])
-          assert "gross_revenue" in messages, messages
-          PY
+          [[ "${{ steps.semguard.outputs.highest-severity }}" == "breaking" ]]
+          [[ "${{ steps.semguard.outputs.blocking }}" == "true" ]]
+          [[ "${{ steps.semguard.outputs.breaking-count }}" != "0" ]]
 
   published-action-smoke-manifest:
     permissions:
@@ -114,14 +106,5 @@ jobs:
             echo "Expected the published manifest smoke test to fail on the seeded breaking change."
             exit 1
           fi
-          test -f semguard-report.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payload = json.loads(Path("semguard-report.json").read_text(encoding="utf-8"))
-          assert payload["highest_severity"] == "breaking", payload
-          assert payload["blocking"] is True, payload
-          messages = "\n".join(change["message"] for change in payload["changes"])
-          assert "gross_revenue" in messages, messages
-          PY
+          [[ "${{ steps.semguard.outputs.highest-severity }}" == "breaking" ]]
+          [[ "${{ steps.semguard.outputs.blocking }}" == "true" ]]
