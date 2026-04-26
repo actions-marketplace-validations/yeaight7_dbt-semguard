@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.2 - 2026-04-26
+
+### Added
+
+- Native support for dbt MetricFlow `measures` as first-class citizens in extraction and diffing (`MeasureContract`).
+- Support for `fail-on: none` advisory mode.
+- Inline code annotations on GitHub PRs via the Check Runs API.
+- Automated PyPI publishing workflow (`publish.yml`) using OIDC Trusted Publishers.
+
+### Changed
+
+- Replaced Pydantic with standard library `dataclasses` to drastically reduce package size and CLI cold-start times.
+- Implemented direction-sensitive diffing for granularity changes (e.g., coarsening time granularity is `breaking`, fining it is `risky`).
+- Improved SQL filter normalization to ignore whitespace, quotes, and case.
+- Maintained strict backward compatibility with existing extracted JSON contracts during the Pydantic migration.
+
 ## v0.5.1 - 2026-04-26
 
 ### Added
