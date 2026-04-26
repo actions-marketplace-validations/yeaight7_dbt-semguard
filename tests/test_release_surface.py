@@ -3,6 +3,9 @@ import tomllib
 
 import yaml
 
+from dbt_semguard import __version__
+from dbt_semguard import cli as cli_module
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -231,6 +234,41 @@ def test_action_exposes_pr_comment_input():
     assert publish_step["env"]["SEMGUARD_GITHUB_TOKEN"] == "${{ inputs.github-token }}"
 
 
+def test_action_comment_pr_arguments_are_accepted_by_cli_parser(tmp_path: Path):
+    action = yaml.safe_load((ROOT / "action.yml").read_text(encoding="utf-8"))
+    publish_step = next(step for step in action["runs"]["steps"] if step.get("name") == "Publish PR comment")
+    command_text = publish_step["run"]
+
+    for expected_flag in ("--repo", "--head-sha", "--report-json", "--mode"):
+        assert expected_flag in command_text
+
+    parser = cli_module._build_parser()
+    body_file = tmp_path / "body.md"
+    report_json = tmp_path / "report.json"
+    parsed = parser.parse_args(
+        [
+            "comment-pr",
+            "--body-file",
+            str(body_file),
+            "--repo",
+            "OWNER/REPO",
+            "--pr-number",
+            "12",
+            "--head-sha",
+            "abc123",
+            "--report-json",
+            str(report_json),
+            "--mode",
+            "sticky",
+        ]
+    )
+
+    assert parsed.repo == "OWNER/REPO"
+    assert parsed.pr_number == 12
+    assert parsed.head_sha == "abc123"
+    assert parsed.report_json == str(report_json)
+
+
 def test_readme_uses_marketplace_action_ref_and_relative_links():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -260,3 +298,23 @@ def test_pyproject_includes_v052_packaging_metadata():
     requirements_dev = (ROOT / "requirements-dev.txt").read_text(encoding="utf-8")
     assert "PyYAML==" in requirements_dev
     assert "pytest==" in requirements_dev
+
+
+def test_version_references_are_consistent_across_release_surface():
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    version = pyproject["project"]["version"]
+
+    assert __version__ == version
+    assert f"## v{version}" in changelog.splitlines()[2]
+    assert f"dbt-semguard@v{version}" in readme
+    assert f"dbt-semguard.git@v{version}" in readme
+
+
+def test_publish_workflow_runs_tests_before_build():
+    workflow_text = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
+    pytest_index = workflow_text.index("python -m pytest")
+    build_index = workflow_text.index("hatch build")
+
+    assert pytest_index < build_index
