@@ -4,7 +4,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
 
-from dbt_semguard.models import ChangeRecord, MetricContract, SemanticContract
+from dbt_semguard.models import ChangeRecord, MetricContract, SemanticContract, Severity
 
 
 @dataclass(frozen=True)
@@ -14,48 +14,48 @@ class FieldComparator:
 
 
 SEVERITY_BY_CODE = {
-    "semantic_model.added": "risky",
-    "semantic_model.removed": "breaking",
-    "semantic_model.model_changed": "breaking",
-    "semantic_model.agg_time_dimension_changed": "risky",
-    "entity.added": "risky",
-    "entity.removed": "breaking",
-    "entity.type_changed": "breaking",
-    "entity.expr_changed": "breaking",
-    "dimension.added": "risky",
-    "dimension.removed": "breaking",
-    "dimension.type_changed": "breaking",
-    "dimension.expr_changed": "breaking",
-    "dimension.granularity_changed": "risky",
-    "measure.added": "risky",
-    "measure.removed": "breaking",
-    "measure.agg_changed": "breaking",
-    "measure.expr_changed": "breaking",
-    "measure.agg_time_dimension_changed": "risky",
-    "measure.non_additive_dimension_changed": "breaking",
-    "metric.added": "risky",
-    "metric.removed": "breaking",
-    "metric.type_changed": "breaking",
-    "metric.owner_model_changed": "breaking",
-    "metric.label_changed": "risky",
-    "metric.filter_changed": "risky",
-    "metric.agg_time_dimension_changed": "risky",
-    "metric.simple.agg_changed": "breaking",
-    "metric.simple.expr_changed": "breaking",
-    "metric.simple.non_additive_dimension_changed": "breaking",
-    "metric.ratio.numerator_changed": "breaking",
-    "metric.ratio.denominator_changed": "breaking",
-    "metric.derived.inputs_changed": "breaking",
-    "metric.derived.expr_changed": "breaking",
-    "metric.cumulative.input_metric_changed": "breaking",
-    "metric.cumulative.window_changed": "risky",
-    "metric.cumulative.grain_to_date_changed": "risky",
-    "metric.cumulative.period_agg_changed": "breaking",
-    "metric.conversion.entity_changed": "breaking",
-    "metric.conversion.calculation_changed": "breaking",
-    "metric.conversion.base_metric_changed": "breaking",
-    "metric.conversion.conversion_metric_changed": "breaking",
-    "metric.conversion.constant_properties_changed": "risky",
+    "semantic_model.added": Severity.RISKY,
+    "semantic_model.removed": Severity.BREAKING,
+    "semantic_model.model_changed": Severity.BREAKING,
+    "semantic_model.agg_time_dimension_changed": Severity.RISKY,
+    "entity.added": Severity.RISKY,
+    "entity.removed": Severity.BREAKING,
+    "entity.type_changed": Severity.BREAKING,
+    "entity.expr_changed": Severity.BREAKING,
+    "dimension.added": Severity.RISKY,
+    "dimension.removed": Severity.BREAKING,
+    "dimension.type_changed": Severity.BREAKING,
+    "dimension.expr_changed": Severity.BREAKING,
+    "dimension.granularity_changed": Severity.RISKY,
+    "measure.added": Severity.RISKY,
+    "measure.removed": Severity.BREAKING,
+    "measure.agg_changed": Severity.BREAKING,
+    "measure.expr_changed": Severity.BREAKING,
+    "measure.agg_time_dimension_changed": Severity.RISKY,
+    "measure.non_additive_dimension_changed": Severity.BREAKING,
+    "metric.added": Severity.RISKY,
+    "metric.removed": Severity.BREAKING,
+    "metric.type_changed": Severity.BREAKING,
+    "metric.owner_model_changed": Severity.BREAKING,
+    "metric.label_changed": Severity.RISKY,
+    "metric.filter_changed": Severity.RISKY,
+    "metric.agg_time_dimension_changed": Severity.RISKY,
+    "metric.simple.agg_changed": Severity.BREAKING,
+    "metric.simple.expr_changed": Severity.BREAKING,
+    "metric.simple.non_additive_dimension_changed": Severity.BREAKING,
+    "metric.ratio.numerator_changed": Severity.BREAKING,
+    "metric.ratio.denominator_changed": Severity.BREAKING,
+    "metric.derived.inputs_changed": Severity.BREAKING,
+    "metric.derived.expr_changed": Severity.BREAKING,
+    "metric.cumulative.input_metric_changed": Severity.BREAKING,
+    "metric.cumulative.window_changed": Severity.RISKY,
+    "metric.cumulative.grain_to_date_changed": Severity.RISKY,
+    "metric.cumulative.period_agg_changed": Severity.BREAKING,
+    "metric.conversion.entity_changed": Severity.BREAKING,
+    "metric.conversion.calculation_changed": Severity.BREAKING,
+    "metric.conversion.base_metric_changed": Severity.BREAKING,
+    "metric.conversion.conversion_metric_changed": Severity.BREAKING,
+    "metric.conversion.constant_properties_changed": Severity.RISKY,
 }
 
 SEMANTIC_MODEL_COMPARATORS = (
@@ -116,71 +116,6 @@ METRIC_TYPE_COMPARATORS = {
         FieldComparator("constant_properties", "metric.conversion.constant_properties_changed"),
     ),
 }
-
-FIELD_DIFF_POLICY = {
-    "SemanticContract": {
-        "semantic_models": None,
-        "metrics": None,
-    },
-    "SemanticModelContract": {
-        "name": False,
-        "model_name": "semantic_model.model_changed",
-        "agg_time_dimension": "semantic_model.agg_time_dimension_changed",
-        "entities": None,
-        "dimensions": None,
-        "measures": None,
-        "source": False,
-    },
-    "EntityContract": {
-        "name": False,
-        "type": "entity.type_changed",
-        "expr": "entity.expr_changed",
-        "source": False,
-    },
-    "DimensionContract": {
-        "name": False,
-        "type": "dimension.type_changed",
-        "expr": "dimension.expr_changed",
-        "granularity": "dimension.granularity_changed",
-        "source": False,
-    },
-    "MeasureContract": {
-        "name": False,
-        "agg": "measure.agg_changed",
-        "expr": "measure.expr_changed",
-        "agg_time_dimension": "measure.agg_time_dimension_changed",
-        "non_additive_dimension": "measure.non_additive_dimension_changed",
-        "source": False,
-    },
-    "MetricContract": {
-        "name": False,
-        "metric_type": "metric.type_changed",
-        "label": "metric.label_changed",
-        "agg": {"simple": "metric.simple.agg_changed"},
-        "expr": {
-            "simple": "metric.simple.expr_changed",
-            "derived": "metric.derived.expr_changed",
-        },
-        "filter": "metric.filter_changed",
-        "agg_time_dimension": "metric.agg_time_dimension_changed",
-        "numerator": {"ratio": "metric.ratio.numerator_changed"},
-        "denominator": {"ratio": "metric.ratio.denominator_changed"},
-        "input_metrics": {"derived": "metric.derived.inputs_changed"},
-        "input_metric": {"cumulative": "metric.cumulative.input_metric_changed"},
-        "window": {"cumulative": "metric.cumulative.window_changed"},
-        "grain_to_date": {"cumulative": "metric.cumulative.grain_to_date_changed"},
-        "period_agg": {"cumulative": "metric.cumulative.period_agg_changed"},
-        "entity": {"conversion": "metric.conversion.entity_changed"},
-        "calculation": {"conversion": "metric.conversion.calculation_changed"},
-        "base_metric": {"conversion": "metric.conversion.base_metric_changed"},
-        "conversion_metric": {"conversion": "metric.conversion.conversion_metric_changed"},
-        "constant_properties": {"conversion": "metric.conversion.constant_properties_changed"},
-        "non_additive_dimension": {"simple": "metric.simple.non_additive_dimension_changed"},
-        "owner_model": "metric.owner_model_changed",
-        "source": False,
-    },
-}
-
 
 def diff_contracts(base: SemanticContract, head: SemanticContract) -> list[ChangeRecord]:
     changes: list[ChangeRecord] = []
@@ -302,7 +237,7 @@ GRAIN_ORDER = {
 }
 
 
-def _severity_for_granularity_change(before: Any, after: Any) -> str:
+def _severity_for_granularity_change(before: Any, after: Any) -> Severity:
     before_grain = str(before).lower() if before else None
     after_grain = str(after).lower() if after else None
     before_rank = GRAIN_ORDER.get(before_grain, 0)
@@ -312,16 +247,16 @@ def _severity_for_granularity_change(before: Any, after: Any) -> str:
         return SEVERITY_BY_CODE["dimension.granularity_changed"]
         
     if after_rank > before_rank:
-        return "breaking"
-    return "risky"
+        return Severity.BREAKING
+    return Severity.RISKY
 
 
-def _severity_for_non_additive_change(before: Any, after: Any) -> str:
+def _severity_for_non_additive_change(before: Any, after: Any) -> Severity:
     if before is None and isinstance(after, dict):
-        return "breaking"
+        return Severity.BREAKING
     if isinstance(before, dict) and after is None:
-        return "risky"
-    return "breaking"
+        return Severity.RISKY
+    return Severity.BREAKING
 
 
 def _change(code: str, path: str, before: object, after: object, source=None) -> ChangeRecord:
