@@ -96,3 +96,14 @@ def test_community_docs_exist_and_cover_expected_topics():
     assert "fail-on" in troubleshooting
     assert "semantic_manifest.json" in troubleshooting
     assert "No semantic changes detected." in troubleshooting
+
+
+def test_docs_do_not_reference_previous_current_version():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    how_to_use = (ROOT / "docs" / "how-to-use.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    version = __version__
+
+    assert f"v{version}" in readme
+    assert f"v{version}" in how_to_use
+    assert f"## v{version}" in changelog
