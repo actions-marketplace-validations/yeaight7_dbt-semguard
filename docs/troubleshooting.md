@@ -37,8 +37,11 @@ The GitHub Action accepts only these values for `fail-on`:
 - `breaking`
 - `risky`
 - `safe`
+- `none`
 
-If you pass anything else, the action now fails early with a direct configuration error instead of a later internal exception.
+Use `none` when you want advisory-only reporting without blocking the workflow.
+
+If you pass anything else, the action fails early with a direct configuration error instead of a later internal exception.
 
 ## Wrong manifest artifact
 
