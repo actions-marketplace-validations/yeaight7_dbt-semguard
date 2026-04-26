@@ -398,7 +398,7 @@ def _build_metric_contract(payload: dict[str, Any], owner_model: str | None, sou
     )
     return MetricContract(
         name=str(metric_name),
-        type=str(metric_type),
+        metric_type=str(metric_type),
         label=payload.get("label"),
         agg=payload.get("agg"),
         expr=_normalize_value(payload.get("expr")),
