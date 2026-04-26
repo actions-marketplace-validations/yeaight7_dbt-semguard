@@ -615,7 +615,7 @@ def _build_metric_contract_from_semantic_manifest(
 
     return MetricContract(
         name=payload["name"],
-        type=metric_type,
+        metric_type=metric_type,
         label=payload.get("label"),
         agg=agg,
         expr=expr,
