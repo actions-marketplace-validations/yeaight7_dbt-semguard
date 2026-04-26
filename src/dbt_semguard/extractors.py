@@ -11,6 +11,7 @@ from dbt_semguard.git_utils import load_yaml_documents_from_git_ref
 from dbt_semguard.models import (
     DimensionContract,
     EntityContract,
+    MeasureContract,
     MetricContract,
     SemanticContract,
     SemanticModelContract,
@@ -380,6 +381,26 @@ def _build_legacy_yaml_semantic_model_contract(payload: dict[str, Any], source_f
             source=_source_for(dimension_payload, source_file),
         )
 
+    for measure_payload in payload.get("measures", []) or []:
+        if not isinstance(measure_payload, dict):
+            continue
+        measure_name = str(
+            _required_value(
+                measure_payload,
+                key="name",
+                source_file=source_file,
+                kind="measure",
+            )
+        )
+        contract.measures[measure_name] = MeasureContract(
+            name=measure_name,
+            agg=measure_payload.get("agg"),
+            expr=str(measure_payload.get("expr") or measure_name),
+            agg_time_dimension=measure_payload.get("agg_time_dimension"),
+            non_additive_dimension=measure_payload.get("non_additive_dimension"),
+            source=_source_for(measure_payload, source_file),
+        )
+
     return contract
 
 
@@ -717,23 +738,33 @@ def _normalize_value(value: Any) -> str | None:
 def _normalize_filter_value(value: Any) -> str | None:
     if value is None:
         return None
+    raw_str = None
     if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
+        raw_str = value
+    elif isinstance(value, dict):
         value = _without_loader_metadata(value)
         where_sql_template = value.get("where_sql_template")
         if isinstance(where_sql_template, str):
-            return where_sql_template
-        where_filters = value.get("where_filters")
-        if isinstance(where_filters, list):
-            parts = [
-                item["where_sql_template"]
-                for item in where_filters
-                if isinstance(item, dict) and isinstance(item.get("where_sql_template"), str)
-            ]
-            if parts:
-                return " AND ".join(parts)
-    return _normalize_value(value)
+            raw_str = where_sql_template
+        else:
+            where_filters = value.get("where_filters")
+            if isinstance(where_filters, list):
+                parts = [
+                    item["where_sql_template"]
+                    for item in where_filters
+                    if isinstance(item, dict) and isinstance(item.get("where_sql_template"), str)
+                ]
+                if parts:
+                    raw_str = " AND ".join(parts)
+                    
+    if raw_str is None:
+        raw_str = _normalize_value(value)
+        
+    if raw_str is None:
+        return None
+        
+    normalized = " ".join(raw_str.split()).lower().replace('"', "'")
+    return normalized.replace(" = ", "=").replace(" > ", ">").replace(" < ", "<")
 
 
 def _mapping_values(value: Any) -> list[dict[str, Any]]:
