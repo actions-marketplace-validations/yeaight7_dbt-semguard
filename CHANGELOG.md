@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.3 - 2026-04-26
+
+### Fixed
+
+- Fixed the public GitHub Action `pr-comment: true` path by aligning `action.yml` with the `semguard comment-pr` parser for `--head-sha` and `--report-json`.
+- Made `comment-pr` accept PR-comment-only, check-annotation-only, and combined input shapes while rejecting partial argument pairs with clear exit-code-2 errors.
+- Replaced silent check-run permission skips with a non-fatal warning that points users to `checks: write` and fork PR token limitations.
+
+### Changed
+
+- Documented PyPI as the primary install path and kept GitHub tag install as the secondary option.
+- Added release-publish test execution before building and publishing distributions.
+
 ## v0.5.2 - 2026-04-26
 
 ### Added
