@@ -260,10 +260,47 @@ def _diff_fields(path: str, base_obj: Any, head_obj: Any, comparators: tuple[Fie
             changes.append(_change(comparator.code, path, before, after, head_obj.source or base_obj.source))
 
 
+GRAIN_ORDER = {
+    "day": 1,
+    "week": 2,
+    "month": 3,
+    "quarter": 4,
+    "year": 5,
+}
+
+
+def _severity_for_granularity_change(before: Any, after: Any) -> str:
+    before_grain = str(before).lower() if before else None
+    after_grain = str(after).lower() if after else None
+    before_rank = GRAIN_ORDER.get(before_grain, 0)
+    after_rank = GRAIN_ORDER.get(after_grain, 0)
+    
+    if before_rank == 0 or after_rank == 0:
+        return SEVERITY_BY_CODE["dimension.granularity_changed"]
+        
+    if after_rank > before_rank:
+        return "breaking"
+    return "risky"
+
+
+def _severity_for_non_additive_change(before: Any, after: Any) -> str:
+    if before is None and isinstance(after, dict):
+        return "breaking"
+    if isinstance(before, dict) and after is None:
+        return "risky"
+    return "breaking"
+
+
 def _change(code: str, path: str, before: object, after: object, source=None) -> ChangeRecord:
+    severity = SEVERITY_BY_CODE[code]
+    if code == "dimension.granularity_changed":
+        severity = _severity_for_granularity_change(before, after)
+    elif code == "metric.simple.non_additive_dimension_changed":
+        severity = _severity_for_non_additive_change(before, after)
+        
     return ChangeRecord(
         code=code,
-        severity=SEVERITY_BY_CODE[code],
+        severity=severity,
         path=path,
         before=before,
         after=after,
