@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.5.1 - 2026-04-26
+
+### Added
+
+- Added `SECURITY.md` with GitHub Security Advisories guidance and email fallback reporting
+- Added `CONTRIBUTING.md` with Python 3.11+ setup, pinned dev installation, and test commands
+- Added `docs/troubleshooting.md` for shallow clone, YAML validation, fork PR token, `fail-on`, and `semantic_manifest.json` issues
+- Added `requirements-dev.txt` so contributor and CI environments can install pinned dev dependencies reproducibly
+
+### Changed
+
+- Updated `action.yml` input descriptions to document accepted `fail-on` and `pr-comment-mode` values directly in the action surface
+- Action report files now use an isolated temp directory and artifact-derived basename instead of hardcoded workspace filenames
+- CI now installs from `requirements-dev.txt` before editable package install
+- README and usage docs now target `v0.5.1`, document `pr-comment-mode`, zero-change behavior, and show example Markdown/JSON output
+
+### Reliability
+
+- Action execution now validates invalid `fail-on` values early with a direct error message
+- Zero-change reports remain explicit in the workflow summary and Markdown artifact with `No semantic changes detected.` and `Status: passing`
+
 ## v0.5.0 - 2026-04-26
 
 ### Added
