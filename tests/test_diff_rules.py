@@ -20,7 +20,7 @@ def test_diff_classifies_breaking_and_risky_changes():
     assert ("metric.simple.agg_changed", "breaking") in codes
     assert ("metric.ratio.denominator_changed", "breaking") in codes
     assert ("dimension.removed", "breaking") in codes
-    assert ("dimension.granularity_changed", "risky") in codes
+    assert ("dimension.granularity_changed", "breaking") in codes
     assert report.highest_severity == "breaking"
     assert report.blocking is True
 
