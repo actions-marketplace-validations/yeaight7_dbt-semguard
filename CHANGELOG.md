@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.4 - 2026-04-26
+
+### Changed
+
+- Added typed internal severities while preserving the existing JSON strings and GitHub output values.
+- Split extractor internals into YAML, manifest, and normalization modules behind the existing public facade.
+- Scoped CI workflow permissions so broad write access is not requested globally.
+
+### Fixed
+
+- Removed the unused production field-diff policy table and replaced it with comparator coverage tests.
+- Updated release docs for preserved case-sensitive SQL filters, measure diffing, sub-day grain handling, git ref validation, 30-second GitHub API timeouts, and scoped workflow permissions.
+
 ## v0.5.3 - 2026-04-26
 
 ### Fixed
